@@ -1,0 +1,5 @@
+Soil Health Card (SHC) Scheme Operational Guidelines:
+1. Purpose: Provides status of soil nutrient status and recommendations on appropriate dosage of nutrients/fertilizers for improving soil health and crop yields.
+2. Sampling Cycle: Soil samples are collected once every 2 years in grid formats (2.5 ha for irrigated land, 10 ha for rainfed land) by local agriculture departments.
+3. Recommended Parameters: Tests 12 parameters including N, P, K (Macro-nutrients), S (Secondary nutrient), Zn, Fe, Cu, Mn, Bo (Micro-nutrients), and pH, EC, OC (Physical parameters).
+4. Subsidies: Farmers receive soil testing and card generation completely free of charge funded under the National Mission for Sustainable Agriculture (NMSA).

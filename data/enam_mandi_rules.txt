@@ -1,0 +1,5 @@
+e-NAM (National Agriculture Market) Scheme Guidelines & Mandi Rules:
+1. Purpose: e-NAM is a pan-India electronic trading portal that networks existing APMC mandis to create a unified national market for agricultural commodities.
+2. Registration & Trading: Farmers can register free of charge at their local APMC e-NAM kiosk or online portal using their Aadhaar card and bank account details.
+3. Quality Testing & Assaying: Mandis provide free automated quality testing and assaying labs to grade farmer produce before online bidding.
+4. Direct Payment Transfer: Sale proceeds are directly transferred electronically into the farmer's linked bank account within 24 to 48 hours of trade settlement.

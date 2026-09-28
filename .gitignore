@@ -1,0 +1,8 @@
+venv/
+__pycache__/
+.env
+*.db
+chroma_db/
+temp_input.wav
+response.mp3
+.streamlit/secrets.toml
