@@ -2,7 +2,10 @@ import hashlib
 import html
 import os
 import streamlit as st
+<<<<<<< HEAD
 import streamlit.components.v1 as components
+=======
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 
 from rag_engine import (
     LANG_MAPPING,
@@ -70,10 +73,17 @@ html, body, [class*="css"] {
     padding:22px 26px 42px 26px !important;
     margin-top:16px !important;
     margin-bottom:24px !important;
+<<<<<<< HEAD
     background:transparent !important;
     border:none !important;
     border-radius:0 !important;
     box-shadow:none !important;
+=======
+    background:#FFFFFF !important;
+    border:1px solid #D7E0E8 !important;
+    border-radius:20px !important;
+    box-shadow:0 10px 35px rgba(0,0,0,.20) !important;
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 }
 
 /* Every bordered Streamlit container is an opaque white card. */
@@ -233,6 +243,7 @@ div[data-testid="stHorizontalBlock"] {
     background:#FFF9F0;
     border-left:5px solid #D68B3A;
 }
+<<<<<<< HEAD
 
 /* Individual dynamic cards stay solid; the farm image remains visible around them. */
 .query-box, .answer-box, .source-box, .info-box, .warning-box, .scheme-card {
@@ -250,6 +261,8 @@ div[data-testid="stHorizontalBlock"] {
 .scheme-card { min-height:72px !important; text-align:left !important; }
 .scheme-card strong, .scheme-card span { display:block !important; color:#1F2D3D !important; }
 .scheme-card span { margin-top:8px !important; color:#536273 !important; }
+=======
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 .scheme-card {
     background:#F5F8FC;
     border:1px solid #D6E1EB;
@@ -321,6 +334,7 @@ div[data-testid="stHorizontalBlock"] {
 """, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
+<<<<<<< HEAD
 # UI translation
 # -----------------------------------------------------------------------------
 UI_BASE = {
@@ -425,6 +439,9 @@ def translate_ui(language_name):
 # -----------------------------------------------------------------------------
 # Session state
 # IMPORTANT: initialize all session-state values BEFORE any code reads them.
+=======
+# Session state
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 # -----------------------------------------------------------------------------
 defaults = {
     "selected_language": None,
@@ -438,18 +455,24 @@ defaults = {
     "last_audio_path": "",
     "text_scale": "Standard",
     "tts_slow": False,
+<<<<<<< HEAD
     "language_version": 0,
+=======
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 }
 for key, value in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
+<<<<<<< HEAD
 scale_css = {"Standard": "1", "Large": "1.10", "Extra Large": "1.22"}[st.session_state.text_scale]
 st.markdown(
     f"<style>.query-box,.answer-box,.source-box,.info-box,.warning-box,.scheme-card,.section-title,.hero-title,.hero-subtitle {{ zoom:{scale_css}; }}</style>",
     unsafe_allow_html=True,
 )
 
+=======
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 all_langs = list(LANG_MAPPING.keys())
 if st.session_state.selected_language not in all_langs:
     st.session_state.selected_language = None
@@ -460,9 +483,14 @@ if st.session_state.selected_language not in all_langs:
 menu_col, title_col = st.columns([0.8, 8.2], gap="small")
 with menu_col:
     with st.popover("☰", use_container_width=True):
+<<<<<<< HEAD
         menu_ui = translate_ui(st.session_state.selected_language or "English")
         st.markdown(f"### {html.escape(menu_ui['menu_title'])}")
         st.caption(menu_ui["menu_caption"])
+=======
+        st.markdown("### Sahakar-Vaani Menu")
+        st.caption("Open the kiosk features and controls from here.")
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 
         current_index = (
             all_langs.index(st.session_state.selected_language)
@@ -470,6 +498,7 @@ with menu_col:
             else 0
         )
         menu_language = st.selectbox(
+<<<<<<< HEAD
             menu_ui["language"],
             all_langs,
             index=current_index,
@@ -504,6 +533,44 @@ with menu_col:
         st.caption(f"{menu_ui['connection']}: {menu_ui['online'] if is_internet_available() else menu_ui['limited']}")
 
         if st.button(menu_ui["new_session"], use_container_width=True):
+=======
+            "Language",
+            all_langs,
+            index=current_index,
+            key="menu_language_v3",
+        )
+        if st.button("🌐 Apply selected language", use_container_width=True):
+            # Store exactly what the user selected. No preview-language state is used.
+            st.session_state.selected_language = menu_language
+            st.session_state.last_audio_hash = None
+            st.rerun()
+
+        st.markdown("---")
+        st.markdown("**Features**")
+        st.markdown("🎙️ Ask about government schemes")
+        st.markdown("📖 View retrieved policy sources")
+        st.markdown("🚨 Register a grievance")
+        st.markdown("📞 Government helplines")
+
+        st.markdown("---")
+        st.markdown("**Display & voice**")
+        st.session_state.text_scale = st.selectbox(
+            "Text size",
+            ["Standard", "Large", "Extra Large"],
+            index=["Standard", "Large", "Extra Large"].index(st.session_state.text_scale),
+            key="menu_text_scale",
+        )
+        speed = st.radio("Voice speed", ["Normal", "Slow"], index=1 if st.session_state.tts_slow else 0, key="menu_voice_speed")
+        st.session_state.tts_slow = speed == "Slow"
+
+        st.markdown("---")
+        st.markdown("**Kiosk**")
+        st.caption(f"Terminal: {KIOSK_ID}")
+        st.caption(f"Location: {KIOSK_DISTRICT}, {KIOSK_STATE}")
+        st.caption(f"Connection: {'Online' if is_internet_available() else 'Limited'}")
+
+        if st.button("🔄 New session", use_container_width=True):
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
             lang = st.session_state.selected_language
             st.session_state.clear()
             for k, v in defaults.items():
@@ -512,8 +579,12 @@ with menu_col:
             st.rerun()
 
 with title_col:
+<<<<<<< HEAD
     header_ui = translate_ui(st.session_state.selected_language or "English")
     st.markdown(f'<div class="menu-caption">{html.escape(header_ui["header_kiosk"])}</div>', unsafe_allow_html=True)
+=======
+    st.markdown('<div class="menu-caption">🌾 Sahakar-Vaani • Farmer Assistance Kiosk</div>', unsafe_allow_html=True)
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 
 # -----------------------------------------------------------------------------
 # Header card
@@ -524,9 +595,15 @@ with st.container(border=True):
         <div style="display:flex;align-items:center;gap:20px;">
             <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" style="width:72px;height:72px;object-fit:contain;">
             <div>
+<<<<<<< HEAD
                 <span class="gov-tag">{html.escape(translate_ui(st.session_state.selected_language or "English")["tag"])}</span>
                 <div class="hero-title">🏛️ {html.escape(translate_ui(st.session_state.selected_language or "English")["title"])}</div>
                 <div class="hero-subtitle">{html.escape(translate_ui(st.session_state.selected_language or "English")["subtitle"])}</div>
+=======
+                <span class="gov-tag">{html.escape(get_ui_translation(st.session_state.selected_language or "English")['tag'])}</span>
+                <div class="hero-title">🏛️ {html.escape(get_ui_translation(st.session_state.selected_language or "English")['title'])}</div>
+                <div class="hero-subtitle">{html.escape(get_ui_translation(st.session_state.selected_language or "English")['subtitle'])}</div>
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
             </div>
         </div>
         """,
@@ -537,7 +614,11 @@ with st.container(border=True):
 # Language gate
 # -----------------------------------------------------------------------------
 if st.session_state.selected_language is None:
+<<<<<<< HEAD
     gate_ui = translate_ui("English")
+=======
+    gate_ui = get_ui_translation("English")
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
     with st.container(border=True):
         st.markdown(f'<div class="section-title">🌐 {html.escape(gate_ui["gate_title"])}</div>', unsafe_allow_html=True)
         st.markdown(
@@ -549,18 +630,29 @@ if st.session_state.selected_language is None:
             gate_ui["gate_label"],
             all_langs,
             index=0,
+<<<<<<< HEAD
             key=f"gate_language_{st.session_state.language_version}",
+=======
+            key="gate_language_v3",
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
         )
         if st.button(gate_ui["gate_btn"], type="primary", use_container_width=True):
             # Exact widget value -> exact application language.
             st.session_state.selected_language = chosen
             st.session_state.last_audio_hash = None
+<<<<<<< HEAD
             st.session_state.language_version += 1
+=======
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
             st.rerun()
     st.stop()
 
 active_lang = st.session_state.selected_language
+<<<<<<< HEAD
 T = translate_ui(active_lang)
+=======
+T = get_ui_translation(active_lang)
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 
 # -----------------------------------------------------------------------------
 # Active language and status
@@ -570,7 +662,11 @@ with st.container(border=True):
     with c1:
         st.markdown(f'<div class="info-box">🌐 {html.escape(T["active_lang"])} <b>{html.escape(active_lang)}</b></div>', unsafe_allow_html=True)
     with c2:
+<<<<<<< HEAD
         if st.button(T["change_language"], use_container_width=True):
+=======
+        if st.button("Change language", use_container_width=True):
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
             st.session_state.selected_language = None
             st.session_state.last_audio_hash = None
             st.session_state.last_query = ""
@@ -601,6 +697,7 @@ with st.container(border=True):
 # -----------------------------------------------------------------------------
 with st.container(border=True):
     st.markdown(f'<div class="section-title">🎙️ {html.escape(T["audio_console_header"])}</div>', unsafe_allow_html=True)
+<<<<<<< HEAD
     st.markdown(f'<div class="info-box">{html.escape(T["query_info"])}</div>', unsafe_allow_html=True)
 
     audio_input = st.audio_input(T["record_question"], key=f"farmer_audio_input_{st.session_state.language_version}")
@@ -608,6 +705,15 @@ with st.container(border=True):
     typed_query = st.text_input(
         T["type_question"],
         placeholder=T["placeholder"],
+=======
+    st.markdown('<div class="info-box">Ask one clear question about KCC, PMFBY, PACS bylaws, Soil Health Card or e-NAM. The answer is generated only from the policy documents indexed in this kiosk.</div>', unsafe_allow_html=True)
+
+    audio_input = st.audio_input("🎙️ Record your question", key="farmer_audio_input_v2")
+
+    typed_query = st.text_input(
+        "Or type your question",
+        placeholder="Example: Within how many hours must crop damage be reported under PMFBY?",
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
         key="typed_policy_question",
     )
 
@@ -623,7 +729,11 @@ with st.container(border=True):
         if st.button(T["q3_btn"], use_container_width=True):
             preset_query = T["q3_text"]
 
+<<<<<<< HEAD
     ask_typed = st.button(T["ask_question"], type="primary", use_container_width=True)
+=======
+    ask_typed = st.button("🔎 Ask this question", type="primary", use_container_width=True)
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 
     final_query = None
 
@@ -633,12 +743,20 @@ with st.container(border=True):
         audio_hash = hashlib.sha256(audio_bytes).hexdigest()
         if audio_hash != st.session_state.last_audio_hash:
             st.session_state.last_audio_hash = audio_hash
+<<<<<<< HEAD
             with st.spinner(T["converting"]):
+=======
+            with st.spinner("🎙️ Converting your speech to text..."):
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
                 transcript = transcribe_audio(audio_bytes, language_name=active_lang)
             if transcript and not transcript.startswith(("Transcription Error", "Invalid")):
                 final_query = transcript.strip()
             else:
+<<<<<<< HEAD
                 st.error(transcript or T["could_not_understand"])
+=======
+                st.error(transcript or "Could not understand the recording.")
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 
     if final_query is None and preset_query:
         final_query = preset_query
@@ -647,7 +765,11 @@ with st.container(border=True):
 
     if final_query:
         st.session_state.last_query = final_query
+<<<<<<< HEAD
         with st.spinner(T["checking"]):
+=======
+        with st.spinner("🔎 Checking the verified policy documents..."):
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
             response_text, source_info, raw_context, confidence_score, latency_ms = answer_farmer_query(
                 final_query,
                 language_name=active_lang,
@@ -673,7 +795,11 @@ with st.container(border=True):
         )
 
         if raw_context:
+<<<<<<< HEAD
             with st.expander(T["view_excerpts"]):
+=======
+            with st.expander("📖 View the exact policy excerpts used for this answer"):
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
                 for i, doc in enumerate(raw_context, 1):
                     src = html.escape(str(doc.get("source", "Unknown")))
                     page = doc.get("page")
@@ -683,11 +809,19 @@ with st.container(border=True):
 
         with st.container(border=True):
             m1, m2, m3 = st.columns(3)
+<<<<<<< HEAD
             m1.metric(T["knowledge_match"], f"{confidence_score}%")
             m2.metric(T["response_time"], f"{latency_ms} ms")
             m3.metric(T["answer_language"], active_lang)
 
         with st.spinner(T["preparing_voice"]):
+=======
+            m1.metric("Knowledge match", f"{confidence_score}%")
+            m2.metric("Response time", f"{latency_ms} ms")
+            m3.metric("Answer language", active_lang)
+
+        with st.spinner("🔊 Preparing voice in the selected language..."):
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
             audio_path = generate_ai4bharat_voice(
                 response_text,
                 active_lang,
@@ -696,6 +830,7 @@ with st.container(border=True):
         if audio_path and os.path.exists(audio_path):
             st.audio(audio_path, format="audio/wav" if audio_path.endswith(".wav") else "audio/mp3", autoplay=True)
         else:
+<<<<<<< HEAD
             st.markdown(f'<div class="warning-box">{html.escape(T["voice_unavailable"])}</div>', unsafe_allow_html=True)
             # Browser speech fallback: no second API key is required. The browser uses its installed voice for the selected language.
             browser_codes = {
@@ -707,6 +842,9 @@ with st.container(border=True):
             voice_text = html.escape(response_text).replace("'", "\'").replace("\n", " ")
             voice_lang = browser_codes.get(active_lang, "hi-IN")
             components.html(f"""<button onclick=\"speak()\" style=\"width:100%;padding:12px;border-radius:10px;border:1px solid #C77F32;background:#D99A5B;color:white;font-weight:800;cursor:pointer\">{html.escape(T['listen'])}</button><script>function speak(){{const u=new SpeechSynthesisUtterance('{voice_text}');u.lang='{voice_lang}';u.rate={0.85 if st.session_state.tts_slow else 1.0};speechSynthesis.cancel();speechSynthesis.speak(u);}}setTimeout(speak,250);</script>""", height=60)
+=======
+            st.markdown('<div class="warning-box">🔊 The text answer is ready, but voice playback could not be generated in the selected language.</div>', unsafe_allow_html=True)
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 
         try:
             log_query(
@@ -724,6 +862,7 @@ with st.container(border=True):
 # Grievance + helplines
 # -----------------------------------------------------------------------------
 with st.container(border=True):
+<<<<<<< HEAD
     st.markdown(f'<div class="section-title">{html.escape(T["helpline_header"])}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="info-box">{html.escape(T["helpline_info"])}</div>', unsafe_allow_html=True)
 
@@ -736,13 +875,33 @@ with st.container(border=True):
                 st.success(f"{T['ticket_success']}: {ticket_id}")
             else:
                 st.warning(T["provide_both"])
+=======
+    st.markdown("<div class='section-title'>🚨 Official Helpline & Grievance</div>", unsafe_allow_html=True)
+    st.markdown('<div class="info-box">Kisan Call Center: <b>1800-180-1551</b> &nbsp; • &nbsp; PMFBY: <b>1800-200-5142</b> &nbsp; • &nbsp; PACS State Helpline: <b>1800-233-4567</b></div>', unsafe_allow_html=True)
+
+    with st.expander("Register a grievance ticket"):
+        phone = st.text_input("Mobile number", placeholder="Enter 10-digit mobile number", key="grievance_phone_v2")
+        complaint = st.text_area("Complaint / issue", placeholder="Describe the issue clearly", key="grievance_text_v2")
+        if st.button("Submit grievance ticket", type="primary", use_container_width=True):
+            if phone.strip() and complaint.strip():
+                ticket_id = create_grievance(KIOSK_ID, phone.strip(), complaint.strip())
+                st.success(f"Ticket registered successfully: {ticket_id}")
+            else:
+                st.warning("Please provide both mobile number and complaint.")
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 
 # -----------------------------------------------------------------------------
 # Footer
 # -----------------------------------------------------------------------------
+<<<<<<< HEAD
 st.markdown(f"""
 <div class="footer">
     {html.escape(T["footer"])}<br>
+=======
+st.markdown("""
+<div class="footer">
+    Ministry of Cooperation • Primary Agricultural Credit Societies (PACS) Network<br>
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
     Sahakar-Vaani • Multilingual farmer assistance kiosk
 </div>
 """, unsafe_allow_html=True)

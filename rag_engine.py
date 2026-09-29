@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from groq import Groq
 from gtts import gTTS
 
+<<<<<<< HEAD
 try:
     from langchain_community.vectorstores import Chroma
     from langchain_community.embeddings import FastEmbedEmbeddings
@@ -19,6 +20,8 @@ except Exception:
     Chroma = None
     FastEmbedEmbeddings = None
 
+=======
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 load_dotenv(override=True)
 
 try:
@@ -34,14 +37,22 @@ GROQ_CHAT_MODEL = os.getenv("GROQ_CHAT_MODEL", "openai/gpt-oss-120b")
 WHISPER_MODEL = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3")
 
 LANG_MAPPING = {
+<<<<<<< HEAD
     "Assamese (অসমীয়া)": ("as", "as", "Assamese"),
     "Bengali (বাংলা)": ("bn", "bn", "Bengali"),
     "Bodo (बर')": (None, "brx", "Bodo"),
     "Dogri (डोगरी)": (None, "doi", "Dogri"),
+=======
+    "Assamese (অসমীয়া)": ("as", "bn", "Assamese"),
+    "Bengali (বাংলা)": ("bn", "bn", "Bengali"),
+    "Bodo (बर')": ("hi", "hi", "Bodo"),
+    "Dogri (डोगरी)": ("hi", "hi", "Dogri"),
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
     "English": ("en", "en", "English"),
     "Gujarati (ગુજરાતી)": ("gu", "gu", "Gujarati"),
     "Hindi (हिंदी)": ("hi", "hi", "Hindi"),
     "Kannada (ಕನ್ನಡ)": ("kn", "kn", "Kannada"),
+<<<<<<< HEAD
     "Kashmiri (कॉशुर)": (None, "ks", "Kashmiri"),
     "Konkani (कोंकणी)": (None, "gom", "Konkani"),
     "Maithili (मैथिली)": (None, "mai", "Maithili"),
@@ -54,6 +65,20 @@ LANG_MAPPING = {
     "Sanskrit (संस्कृतम्)": ("sa", "sa", "Sanskrit"),
     "Santali (ᱥᱟᱱᱛᱟᱲᱤ)": (None, "sat", "Santali"),
     "Sindhi (सिंधी)": ("sd", "sd", "Sindhi"),
+=======
+    "Kashmiri (कॉशुर)": ("ur", "ur", "Kashmiri"),
+    "Konkani (कोंकणी)": ("mr", "mr", "Konkani"),
+    "Maithili (मैथिली)": ("hi", "hi", "Maithili"),
+    "Malayalam (മലയാളം)": ("ml", "ml", "Malayalam"),
+    "Manipuri (ꯃꯩꯇꯩꯂꯣꯟ)": ("bn", "bn", "Manipuri"),
+    "Marathi (मराठी)": ("mr", "mr", "Marathi"),
+    "Nepali (नेपाली)": ("ne", "ne", "Nepali"),
+    "Odia (ଓଡ଼ିଆ)": ("or", "hi", "Odia"),
+    "Punjabi (ਪੰਜਾਬੀ)": ("pa", "pa", "Punjabi"),
+    "Sanskrit (संस्कृतम्)": ("hi", "hi", "Sanskrit"),
+    "Santali (ᱥᱟᱱᱛᱟᱲᱤ)": ("hi", "hi", "Santali"),
+    "Sindhi (सिंधी)": ("sd", "hi", "Sindhi"),
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
     "Tamil (தமிழ்)": ("ta", "ta", "Tamil"),
     "Telugu (తెలుగు)": ("te", "te", "Telugu"),
     "Urdu (اردو)": ("ur", "ur", "Urdu"),
@@ -209,6 +234,7 @@ def _translate_for_retrieval(query, language_name):
         return query
 
 
+<<<<<<< HEAD
 @lru_cache(maxsize=1)
 def load_vector_db():
     """Load the same Chroma DB/embedding model used by ingest.py."""
@@ -267,6 +293,8 @@ def _semantic_retrieve(query, k=8):
     return docs, confidence
 
 
+=======
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 def _keyword_retrieve(query, k=6):
     index = load_policy_index()
     if not index:
@@ -319,6 +347,7 @@ def _answer_from_context(question, language_name, docs):
     if not client:
         return "Groq API key is missing. Add GROQ_API_KEY to your project .env file or Streamlit secrets."
 
+<<<<<<< HEAD
     language = LANG_MAPPING.get(language_name, (None, None, language_name))[2]
     script_hint = {
         "Santali": "Write in Santali using Ol Chiki script. Do not answer in Hindi.",
@@ -329,6 +358,9 @@ def _answer_from_context(question, language_name, docs):
         "Konkani": "Write in Konkani; do not substitute Marathi.",
         "Maithili": "Write in Maithili; do not substitute Hindi.",
     }.get(language, f"Write in {language} using its normal native script.")
+=======
+    language = LANG_MAPPING.get(language_name, ("hi", "hi", language_name))[2]
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
     context_parts = []
     for i, doc in enumerate(docs, 1):
         context_parts.append(f"SOURCE {i} — {doc.get('source', 'Unknown')}\n{doc.get('text', '')}")
@@ -336,7 +368,11 @@ def _answer_from_context(question, language_name, docs):
 
     system = f"""You are Sahakar-Vaani, a government agriculture policy assistant.
 Answer the farmer's exact question using ONLY the supplied policy excerpts.
+<<<<<<< HEAD
 Write the final answer in {language}. {script_hint}
+=======
+Write the final answer in {language}.
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
 
 Rules:
 1. Do not invent rates, deadlines, eligibility, procedures, penalties, or benefits.
@@ -366,6 +402,7 @@ def answer_farmer_query(query, language_name="Hindi (हिंदी)"):
     if not query:
         return NO_MATCH.get(language_name, NO_MATCH["English"]), "No verified source found.", [], 0, 0
 
+<<<<<<< HEAD
     # Convert the question to English for the English policy corpus, but also
     # search the original wording. The semantic model handles both paths.
     translated = _translate_for_retrieval(query, language_name)
@@ -381,10 +418,21 @@ def answer_farmer_query(query, language_name="Hindi (हिंदी)"):
     seen = set()
     docs = []
     for doc in semantic_docs_1 + semantic_docs_2 + keyword_docs_1 + keyword_docs_2:
+=======
+    translated = _translate_for_retrieval(query, language_name)
+    # Search both the translated English query and original text. This matters for English policy docs and multilingual farmer speech.
+    docs1, conf1 = _keyword_retrieve(translated, k=6)
+    docs2, conf2 = _keyword_retrieve(query, k=6)
+
+    seen = set()
+    docs = []
+    for doc in docs1 + docs2:
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
         key = (doc.get("source"), doc.get("page"), doc.get("text"))
         if key not in seen:
             seen.add(key)
             docs.append(doc)
+<<<<<<< HEAD
 
     docs = docs[:8]
     confidence = max(sem_conf_1, sem_conf_2, key_conf_1, key_conf_2)
@@ -396,6 +444,13 @@ def answer_farmer_query(query, language_name="Hindi (हिंदी)"):
     has_keyword_evidence = bool(keyword_docs_1 or keyword_docs_2) and max(key_conf_1, key_conf_2) >= 25
 
     if not docs or not (has_semantic_evidence or has_keyword_evidence):
+=======
+    docs = docs[:6]
+    confidence = max(conf1, conf2)
+
+    # If keyword retrieval is weak, still give the model a chance only when we have some evidence.
+    if not docs or confidence < 30:
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
         latency = int((time.time() - start) * 1000)
         return NO_MATCH.get(language_name, NO_MATCH["English"]), "No verified source found.", docs, confidence, latency
 
@@ -415,6 +470,7 @@ def transcribe_audio(audio_bytes, language_name="Hindi (हिंदी)"):
         path = f.name
     try:
         with open(path, "rb") as audio_file:
+<<<<<<< HEAD
             kwargs = {
                 "file": (os.path.basename(path), audio_file.read()),
                 "model": WHISPER_MODEL,
@@ -426,6 +482,15 @@ def transcribe_audio(audio_bytes, language_name="Hindi (हिंदी)"):
             if whisper_code:
                 kwargs["language"] = whisper_code
             result = client.audio.transcriptions.create(**kwargs)
+=======
+            result = client.audio.transcriptions.create(
+                file=(os.path.basename(path), audio_file.read()),
+                model=WHISPER_MODEL,
+                language=whisper_code,
+                response_format="json",
+                temperature=0.0,
+            )
+>>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
         text = normalize_query(result.text)
         return text if len(text) >= 2 else "Transcription Error: No meaningful speech was detected."
     except Exception as exc:
