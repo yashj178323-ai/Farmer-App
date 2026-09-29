@@ -1,0 +1,4 @@
+Pradhan Mantri Fasal Bima Yojana (PMFBY) Rules:
+1. Premium Rates: Uniform maximum premium payable by farmers is 2% for Kharif food and oilseed crops, 1.5% for Rabi crops, and 5% for Annual Commercial/Horticultural crops.
+2. Loss Assessment Window: Post-harvest losses covered up to a maximum period of 14 days for crops kept in cut and spread condition in the field against unseasonal cyclonic rains.
+3. Intimation Period: Individual localized calamities (landslide, hailstorm, inundation) must be reported by the farmer within 72 hours of the loss event via the Crop Insurance App or local PACS kiosk.

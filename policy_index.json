@@ -1,0 +1,37 @@
+[
+  {
+    "text": "e-NAM (National Agriculture Market) Scheme Guidelines & Mandi Rules: 1. Purpose: e-NAM is a pan-India electronic trading portal that networks existing APMC mandis to create a unified national market for agricultural commodities. 2. Registration & Trading: Farmers can register free of charge at their local APMC e-NAM kiosk or online portal using their Aadhaar card and bank account details. 3. Quality Testing & Assaying: Mandis provide free automated quality testing and assaying labs to grade farmer produce before online bidding. 4. Direct Payment Transfer: Sale proceeds are directly transferred electronically into the farmer's linked bank account within 24 to 48 hours of trade settlement.",
+    "source": "enam_mandi_rules.txt",
+    "page": null,
+    "collection": "pacs-policy",
+    "indexed_at": "2026-09-29 01:58:35"
+  },
+  {
+    "text": "Kisan Credit Card (KCC) Scheme Rules & Guidelines: 1. Eligibility: All farmers, individual/joint borrowers, tenant farmers, sharecroppers, and Self Help Groups (SHGs) are eligible for KCC. 2. Loan Limits & Interest Subvention: The government provides an interest subvention of 2% per annum for short-term crop loans up to Rs. 3 Lakhs. An additional 3% prompt repayment incentive (PRI) is given to farmers who pay on time, reducing the effective interest rate to 4% per annum. 3. Collateral Waiver: Collateral security is waived for KCC agricultural credit loans up to Rs. 1.60 Lakhs (extended up to Rs. 2.00 Lakhs for tie-up loans). 4. Validity & Processing Fee: The KCC card is valid for 5 years with annual review. Processing fees are waived for KCC loans up to Rs. 3 Lakhs.",
+    "source": "kcc_scheme_guidelines.txt",
+    "page": null,
+    "collection": "pacs-policy",
+    "indexed_at": "2026-09-29 01:58:35"
+  },
+  {
+    "text": "PACS (Primary Agricultural Credit Societies) Model Bylaws: 1. Membership Criteria: Any farmer, rural artisan, or laborer residing within the operational area of the PACS is eligible for A-class membership with voting rights upon purchasing a minimum of 1 share. 2. Crop Loan Disbursement: Scale of Finance (SoF) determined by District Level Technical Committee (DLTC) governs maximum short-term credit allowed per acre for specified crops. 3. Non-Agricultural Credit: PACS can provide short-term credit for allied activities like dairy, poultry, fisheries, and micro-enterprises up to 20% of total loan portfolio.",
+    "source": "pacs_byelaws.txt",
+    "page": null,
+    "collection": "pacs-policy",
+    "indexed_at": "2026-09-29 01:58:35"
+  },
+  {
+    "text": "Pradhan Mantri Fasal Bima Yojana (PMFBY) Rules: 1. Premium Rates: Uniform maximum premium payable by farmers is 2% for Kharif food and oilseed crops, 1.5% for Rabi crops, and 5% for Annual Commercial/Horticultural crops. 2. Loss Assessment Window: Post-harvest losses covered up to a maximum period of 14 days for crops kept in cut and spread condition in the field against unseasonal cyclonic rains. 3. Intimation Period: Individual localized calamities (landslide, hailstorm, inundation) must be reported by the farmer within 72 hours of the loss event via the Crop Insurance App or local PACS kiosk.",
+    "source": "pmfby_guidelines.txt",
+    "page": null,
+    "collection": "pacs-policy",
+    "indexed_at": "2026-09-29 01:58:35"
+  },
+  {
+    "text": "Soil Health Card (SHC) Scheme Operational Guidelines: 1. Purpose: Provides status of soil nutrient status and recommendations on appropriate dosage of nutrients/fertilizers for improving soil health and crop yields. 2. Sampling Cycle: Soil samples are collected once every 2 years in grid formats (2.5 ha for irrigated land, 10 ha for rainfed land) by local agriculture departments. 3. Recommended Parameters: Tests 12 parameters including N, P, K (Macro-nutrients), S (Secondary nutrient), Zn, Fe, Cu, Mn, Bo (Micro-nutrients), and pH, EC, OC (Physical parameters). 4. Subsidies: Farmers receive soil testing and card generation completely free of charge funded under the National Mission for Sustainable Agriculture (NMSA).",
+    "source": "soil_health_card_rules.txt",
+    "page": null,
+    "collection": "pacs-policy",
+    "indexed_at": "2026-09-29 01:58:35"
+  }
+]
