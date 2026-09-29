@@ -12,7 +12,7 @@ Ask in your own language. Get answers grounded in official policy. Escalate to a
 ![DB](https://img.shields.io/badge/Database-SQLite-16a34a?style=flat-square&labelColor=1e293b&logo=sqlite&logoColor=white)
 
 <p align="center">
-  <img src="kiosk-home.jpg" alt="Sahakar-Vaani farmer kiosk home screen with Hindi language selection" width="900">
+  <img src="https://raw.githubusercontent.com/yashj178323-ai/Sahakar-Vaani/main/kiosk-home.jpg" alt="Sahakar-Vaani farmer kiosk home screen with Hindi language selection" width="900">
   <br>
   <sub><i>Farmer kiosk home screen: the farmer picks a language, and speech recognition, AI answers and voice playback all run in that language.</i></sub>
 </p>
