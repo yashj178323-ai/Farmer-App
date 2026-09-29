@@ -1,1156 +1,1301 @@
-import streamlit as st
-import sqlite3
 import os
 import io
 import csv
 import time
 import hashlib
-import pandas as pd
+import sqlite3
 from datetime import datetime, timedelta
 
+import pandas as pd
+import streamlit as st
+
 from db_manager import (
-    DB_FILE, get_district_officer_contact, init_db, fetch_logs_filtered, fetch_metrics, fetch_open_grievance,
-    resolve_grievance, verify_officer, update_officer_password,
-    fetch_low_confidence_logs, fetch_kiosk_status, ticket_age_hours,
-    fetch_distinct_languages, fetch_distinct_kiosks,
-    fetch_avg_latency_ms, fetch_knowledge_gap_count
+    DB_FILE,
+    get_district_officer_contact,
+    init_db,
+    fetch_logs_filtered,
+    fetch_metrics,
+    fetch_open_grievance,
+    resolve_grievance,
+    verify_officer,
+    update_officer_password,
+    fetch_low_confidence_logs,
+    fetch_kiosk_status,
+    ticket_age_hours,
+    fetch_distinct_languages,
+    fetch_distinct_kiosks,
+    fetch_avg_latency_ms,
+    fetch_knowledge_gap_count,
 )
 from report_generator import generate_weekly_report_pdf
 
-# Initialize DB tables
 init_db()
 
 st.set_page_config(
-    page_title="PACS Governance Admin Portal",
+    page_title="Sahakar-Vaani | PACS Governance Administration",
     page_icon="🏛️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed",
 )
-# ==========================================
-# GLOBAL SIDEBAR CONTRAST & HEADER FIX
-# ==========================================
-st.markdown("""
-    <style>
-        /* Force light color on EVERY text element in the sidebar */
-        [data-testid="stSidebar"] * {
-            color: #FFFFFF !important;
-        }
 
-        /* Accent color for subheaders and section titles */
-        [data-testid="stSidebar"] h1, 
-        [data-testid="stSidebar"] h2, 
-        [data-testid="stSidebar"] h3,
-        [data-testid="stSidebar"] .stMarkdown h3 {
-            color: #38BDF8 !important; /* Vivid Cyan */
-            font-weight: 700 !important;
-        }
-
-        /* Radio button labels and navigation text */
-        [data-testid="stSidebar"] div[role="radiogroup"] label p {
-            color: #F1F5F9 !important;
-            font-size: 0.95rem !important;
-        }
-
-        /* Sidebar buttons */
-        [data-testid="stSidebar"] button p {
-            color: #0F172A !important;
-            font-weight: bold !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
-# ==========================================
-# ADMIN PORTAL HIGH-CONTRAST CSS FIX
-# ==========================================
-# ==========================================
-# MAIN DASHBOARD CONTRAST & METRIC CARD FIX
-# ==========================================
-st.markdown("""
-    <style>
-        /* 1. Force dark text for metric card labels/titles */
-        [data-testid="stMetricLabel"],
-        [data-testid="stMetricLabel"] p,
-        [data-testid="stMetricLabel"] div,
-        [data-testid="stMetric"] label {
-            color: #1E293B !important; /* Dark Slate */
-            font-weight: 700 !important;
-            font-size: 0.95rem !important;
-        }
-
-        /* 2. Force high contrast on metric card numerical values */
-        [data-testid="stMetricValue"],
-        [data-testid="stMetricValue"] div {
-            color: #0F172A !important; /* Deep Navy */
-            font-weight: 800 !important;
-        }
-
-        /* 3. Subtitles & general body text on light backgrounds */
-        .main p, .main span, .main label, .main caption {
-            color: #334155 !important; /* Dark Charcoal */
-            font-weight: 500 !important;
-        }
-
-        /* 4. Ensure metric container card backgrounds remain solid white */
-        [data-testid="stMetric"] {
-            background-color: #FFFFFF !important;
-            border: 1px solid #E2E8F0 !important;
-            border-radius: 8px !important;
-            padding: 12px !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# Apply Saffron & Emerald Modern SaaS Theme
-st.markdown("""
+# -----------------------------------------------------------------------------
+# Theme / layout
+# -----------------------------------------------------------------------------
+st.markdown(
+    """
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:wght@600;700&display=swap');
-    
-    .stApp {
-        background: radial-gradient(at 0% 0%, rgba(217, 119, 6, 0.05) 0px, transparent 50%),
-                    radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.05) 0px, transparent 50%),
-                    #F8FAFC !important;
-        font-family: 'Inter', sans-serif !important;
-    }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:wght@600;700;800&display=swap');
 
-    /* Top Tricolor Ribbon */
-    .admin-top-ribbon {
-        background: linear-gradient(90deg, #FF9933 0%, #FFFFFF 50%, #138808 100%);
-        height: 5px;
-        border-radius: 4px;
-        margin-bottom: 20px;
-    }
+:root {
+    --navy: #102a43;
+    --navy-2: #173b5e;
+    --navy-3: #0b2035;
+    --slate: #334e68;
+    --muted: #627d98;
+    --line: #d9e2ec;
+    --surface: rgba(255,255,255,.95);
+    --surface-strong: rgba(255,255,255,.985);
+    --saffron: #e67e22;
+    --green: #138808;
+    --blue: #1769aa;
+    --danger: #b42318;
+}
 
-    /* Metrics Styling */
-    div[data-testid="stMetricValue"] {
-        color: #0F172A !important;
-        font-weight: 800 !important;
-        font-size: 30px !important;
-    }
-    
-    div[data-testid="stMetric"] {
-        background-color: #FFFFFF !important;
-        border: 1px solid #E2E8F0 !important;
-        border-left: 5px solid #D97706 !important;
-        padding: 16px 20px !important;
-        border-radius: 12px !important;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03) !important;
-    }
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif !important;
+}
 
-    /* Custom Cards */
-    .admin-card {
-        background-color: #FFFFFF !important;
-        border: 1px solid #E2E8F0 !important;
-        border-radius: 12px !important;
-        padding: 20px !important;
-        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04) !important;
-        margin-bottom: 20px !important;
-    }
+/* ------------------------------------------------------------------
+   FULL-SCREEN AGRICULTURAL BACKDROP
+   Green crop-field imagery stays around the portal edges while the
+   dashboard itself remains a solid white government workspace.
+   ------------------------------------------------------------------ */
+.stApp {
+    min-height: 100vh !important;
+    background: #dfe9df !important;
+    position: relative !important;
+}
+.stApp::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(90deg, rgba(10,48,22,.24) 0%, rgba(20,76,30,.08) 18%, rgba(255,255,255,.02) 50%, rgba(20,76,30,.08) 82%, rgba(10,48,22,.24) 100%),
+        linear-gradient(180deg, rgba(255,255,255,.06) 0%, rgba(20,75,30,.05) 48%, rgba(8,48,18,.30) 100%),
+        url("https://images.unsplash.com/photo-1716650205028-af3e1b453c3a?auto=format&fit=crop&fm=jpg&q=88&w=2400");
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+}
 
-    h1, h2, h3 {
-        font-family: 'Source Serif 4', serif !important;
-        color: #0F172A !important;
-        font-weight: 700 !important;
-    }
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewContainer"] > .main,
+main,
+section.main {
+    background: transparent !important;
+}
+[data-testid="stHeader"] {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+}
+[data-testid="stHeader"] > div {
+    background: transparent !important;
+}
+[data-testid="stToolbar"],
+.stAppDeployButton {
+    display: none !important;
+}
 
-    .stButton>button {
-        background-color: #D97706 !important;
-        color: #FFFFFF !important;
-        font-weight: 700 !important;
-        border-radius: 8px !important;
-        border: none !important;
-        height: 42px !important;
+/* ------------------------------------------------------------------
+   MAIN CONTENT — clean glass panels with stronger contrast
+   ------------------------------------------------------------------ */
+.block-container {
+    width: min(1180px, calc(100vw - 32px)) !important;
+    max-width: 1180px !important;
+    margin: 14px auto 28px !important;
+    padding: 18px 24px 44px !important;
+    background: #ffffff !important;
+    border: 1px solid #d8e1e8 !important;
+    border-radius: 22px !important;
+    box-shadow: 0 18px 46px rgba(8,34,52,.16) !important;
+    backdrop-filter: none !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    z-index: 2 !important;
+}
+
+/* The authentication page should sit directly on the crop-field backdrop.
+   The authenticated dashboard keeps its centered white workspace. */
+.block-container:has(.login-shell) {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding-top: 18px !important;
+    padding-bottom: 34px !important;
+}
+
+/* Predictable spacing prevents Streamlit columns and cards from visually colliding. */
+[data-testid="stHorizontalBlock"] {
+    gap: 1rem !important;
+    align-items: stretch !important;
+    margin-bottom: 12px !important;
+}
+[data-testid="column"] {
+    min-width: 0 !important;
+}
+
+.gov-ribbon {
+    height: 6px;
+    border-radius: 99px;
+    margin: 0 0 14px 0;
+    background: linear-gradient(90deg, #ff9933 0 33.33%, #ffffff 33.33% 66.66%, #138808 66.66% 100%);
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+
+.gov-header {
+    margin: 0 0 20px 0;
+    padding: 0;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.gov-header-grid {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+.gov-emblem {
+    flex: 0 0 auto;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,.94);
+    border: 1px solid #d7e0e8;
+    border-radius: 14px;
+    padding: 8px;
+    box-shadow: 0 8px 22px rgba(16,42,67,.10);
+}
+.gov-emblem img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    display: block;
+}
+.gov-title-panel {
+    min-width: 0;
+    flex: 1 1 auto;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(215,224,232,.96);
+    border-radius: 15px;
+    padding: 11px 16px 10px;
+    box-shadow: 0 9px 24px rgba(16,42,67,.08);
+}
+.gov-kicker {
+    color: #58708a !important;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+.gov-title {
+    color: #102a43 !important;
+    font-family: 'Source Serif 4', serif !important;
+    font-size: 1.55rem;
+    line-height: 1.12;
+    font-weight: 800;
+}
+.gov-subtitle {
+    color: #526b84 !important;
+    font-size: .78rem;
+    margin-top: 3px;
+    line-height: 1.35;
+}
+.gov-title-panel .tricolor-bar {
+    width: 100%;
+    height: 3px;
+    margin-top: 8px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ff9933 0 33.33%, #ffffff 33.33% 66.66%, #138808 66.66% 100%);
+    border: 1px solid rgba(16,42,67,.08);
+}
+.secure-pill {
+    flex: 0 0 auto;
+    background: rgba(236,253,243,.96);
+    color: #166534 !important;
+    border: 1px solid #bbf7d0;
+    border-radius: 999px;
+    padding: 8px 11px;
+    font-size: .67rem;
+    font-weight: 800;
+    white-space: nowrap;
+    box-shadow: 0 6px 16px rgba(22,101,52,.07);
+}
+
+.page-title {
+    font-family: 'Source Serif 4', serif !important;
+    color: #102a43 !important;
+    text-shadow: 0 2px 18px rgba(255,255,255,.75);
+    font-size: 2rem;
+    line-height: 1.1;
+    font-weight: 800;
+    margin: 8px 0 5px;
+    padding-bottom: 2px;
+}
+.page-subtitle {
+    color: #294b68 !important;
+    font-weight: 600;
+    text-shadow: 0 1px 10px rgba(255,255,255,.82);
+    margin-bottom: 22px;
+    line-height: 1.5;
+}
+.section-title {
+    font-family: 'Source Serif 4', serif !important;
+    color: #102a43 !important;
+    font-size: 1.28rem;
+    font-weight: 800;
+    margin: 4px 0 10px;
+}
+.small-muted {
+    color: #627d98 !important;
+    font-size: .76rem;
+}
+
+.card {
+    background: rgba(255,255,255,.955) !important;
+    border: 1px solid rgba(255,255,255,.90) !important;
+    border-radius: 17px !important;
+    padding: 18px 18px 16px !important;
+    box-shadow: 0 12px 30px rgba(7,30,49,.15) !important;
+    margin: 0 0 18px 0 !important;
+    backdrop-filter: blur(11px);
+    overflow: hidden !important;
+}
+.card-soft { background: rgba(248,250,252,.93) !important; }
+.card-accent { border-left: 5px solid var(--saffron) !important; }
+.card-green { border-left: 5px solid var(--green) !important; }
+.card-blue { border-left: 5px solid var(--blue) !important; }
+.card-danger { border-left: 5px solid var(--danger) !important; }
+
+.metric-card {
+    background: rgba(255,255,255,.975) !important;
+    border: 1px solid rgba(255,255,255,.96) !important;
+    border-radius: 15px !important;
+    padding: 15px 16px !important;
+    min-height: 118px !important;
+    height: 100% !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 10px 26px rgba(7,30,49,.14) !important;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+.metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 34px rgba(7,30,49,.22) !important;
+}
+.metric-label {
+    color: #526b84 !important;
+    font-size: .72rem !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    letter-spacing: .055em;
+}
+.metric-value {
+    color: #102a43 !important;
+    font-size: 1.8rem !important;
+    line-height: 1.15;
+    font-weight: 800 !important;
+    margin-top: 6px;
+}
+.metric-note {
+    color: #627d98 !important;
+    font-size: .73rem !important;
+    margin-top: 5px;
+}
+
+[data-testid="stMetric"] {
+    background: rgba(255,255,255,.97) !important;
+    border: 1px solid rgba(255,255,255,.95) !important;
+    border-radius: 14px !important;
+    padding: 13px !important;
+    box-shadow: 0 8px 22px rgba(7,30,49,.11) !important;
+}
+[data-testid="stMetricLabel"] p {
+    color: #526b84 !important;
+    font-weight: 700 !important;
+}
+[data-testid="stMetricValue"] {
+    color: #102a43 !important;
+    font-weight: 800 !important;
+}
+
+/* ------------------------------------------------------------------
+   CUSTOM HAMBURGER NAVIGATION
+   The native Streamlit sidebar is hidden. The portal uses a compact
+   three-line menu in the header so the dashboard stays centered.
+   ------------------------------------------------------------------ */
+[data-testid="stSidebar"] {
+    display: none !important;
+}
+
+.menu-popover {
+    background: #102a43 !important;
+    color: #fff !important;
+    border-radius: 13px !important;
+}
+
+.menu-popover-title {
+    color: #102a43 !important;
+    font-family: 'Source Serif 4', serif !important;
+    font-size: 1.12rem;
+    font-weight: 800;
+    margin-bottom: 2px;
+}
+.menu-popover-subtitle {
+    color: #627d98 !important;
+    font-size: .72rem;
+    margin-bottom: 12px;
+    line-height: 1.45;
+}
+
+[data-testid="stPopover"] > button {
+    width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 0 !important;
+    border-radius: 13px !important;
+    background: #102a43 !important;
+    border: 1px solid #173b5e !important;
+    color: #fff !important;
+    box-shadow: 0 8px 20px rgba(16,42,67,.18) !important;
+    font-size: 1.55rem !important;
+    line-height: 1 !important;
+}
+[data-testid="stPopover"] > button:hover {
+    background: #173b5e !important;
+    border-color: #173b5e !important;
+}
+
+.menu-user {
+    margin-top: 12px;
+    padding: 10px 11px;
+    border-radius: 11px;
+    background: #f3f7fa;
+    border: 1px solid #d9e2ec;
+}
+.menu-user-name { color:#102a43 !important; font-weight:800; font-size:.78rem; }
+.menu-user-role { color:#627d98 !important; font-size:.66rem; margin-top:3px; }
+
+/* Keep the popover navigation compact and readable. */
+[data-testid="stPopover"] div[role="radiogroup"] {
+    gap: 5px !important;
+}
+[data-testid="stPopover"] div[role="radiogroup"] label {
+    background: #f8fafc !important;
+    border: 1px solid #d9e2ec !important;
+    border-radius: 9px !important;
+    padding: 7px 9px !important;
+    margin: 2px 0 !important;
+}
+[data-testid="stPopover"] div[role="radiogroup"] label:hover {
+    background: #eef5fa !important;
+    border-color: #b9cbe0 !important;
+}
+[data-testid="stPopover"] div[role="radiogroup"] label:has(input:checked) {
+    background: #eaf2f8 !important;
+    border-color: #9eb7cc !important;
+    box-shadow: inset 4px 0 0 #ff9933 !important;
+}
+[data-testid="stPopover"] div[role="radiogroup"] label p {
+    color: #102a43 !important;
+    font-size: .76rem !important;
+    font-weight: 700 !important;
+}
+
+/* ------------------------------------------------------------------
+   STREAMLIT WIDGETS / TABLES — remove washed-out text and collisions
+   ------------------------------------------------------------------ */
+.stButton > button, .stDownloadButton > button {
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    min-height: 40px !important;
+    border: 1px solid #ccd7e3 !important;
+    background: #fff !important;
+    color: #102a43 !important;
+}
+.stButton > button:hover, .stDownloadButton > button:hover {
+    border-color: #9eb0c4 !important;
+    background: #f8fafc !important;
+}
+button[kind="primary"] {
+    background: #102a43 !important;
+    color: #fff !important;
+    border-color: #102a43 !important;
+}
+
+[data-testid="stDataFrame"] {
+    background: rgba(255,255,255,.98) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    box-shadow: 0 7px 18px rgba(7,30,49,.10) !important;
+}
+
+div[data-baseweb="tab-list"] {
+    gap: 5px;
+    background: rgba(255,255,255,.70);
+    padding: 5px;
+    border-radius: 12px;
+}
+button[data-baseweb="tab"] { font-weight: 700 !important; }
+
+.login-shell { max-width: 590px; margin: 6vh auto 0; position:relative; z-index:2; }
+.login-card {
+    background: rgba(255,255,255,.965) !important;
+    border: 1px solid rgba(255,255,255,.92) !important;
+    border-radius: 21px !important;
+    padding: 31px !important;
+    box-shadow: 0 22px 60px rgba(7,30,49,.22) !important;
+    backdrop-filter: blur(13px);
+}
+.login-title {
+    font-family: 'Source Serif 4', serif !important;
+    color: #102a43 !important;
+    font-size: 2rem;
+    font-weight: 800;
+}
+.login-note { color:#526b84 !important; font-size:.88rem; line-height:1.55; }
+
+.alert-box { border-radius:12px; padding:12px 14px; border:1px solid #fecaca; background:#fff7f7; color:#991b1b; font-weight:700; }
+.info-box { border-radius:12px; padding:12px 14px; border:1px solid #bfdbfe; background:#eff6ff; color:#1e40af; font-weight:600; }
+
+@media (min-width: 1400px) {
+    .block-container {
+        width: 1180px !important;
     }
-    .stButton>button:hover {
-        background-color: #B45309 !important;
+}
+
+/* Responsive cleanup */
+@media (max-width: 900px) {
+    .gov-header-grid {
+        flex-wrap: wrap;
     }
+    .gov-title-panel {
+        flex: 1 1 calc(100% - 82px);
+    }
+    .secure-pill {
+        margin-left: 78px;
+    }
+    .block-container { width: calc(100vw - 18px) !important; max-width: none !important; padding: .8rem .75rem 2.5rem !important; margin: 8px auto 1.5rem !important; border-radius: 18px !important; }
+    [data-testid="stHorizontalBlock"] { gap: .65rem !important; }
+    .gov-header-grid { align-items:flex-start; }
+    .gov-title { font-size:1.35rem; }
+    .secure-pill { display:none; }
+}
 </style>
-<div class="admin-top-ribbon"></div>
-""", unsafe_allow_html=True)
-
-# Navigation Sidebar
-st.sidebar.markdown("### 🏛️ PACS Admin Portal")
-st.sidebar.markdown("**Network**: `PACS Governance`")
-st.sidebar.divider()
-
-menu = st.sidebar.radio(
-    "Navigation",
-    ["📊 Executive Dashboard", "🚨 Grievance Management", "🎙️ Live Telemetry Logs", "📑 Report Export", "🔐 Security Settings"]
+""",
+    unsafe_allow_html=True,
 )
 
-# 1. Executive Dashboard
-if menu == "📊 Executive Dashboard":
-    st.markdown("# 📊 PACS Network Telemetry & Analytics")
-    st.markdown("Real-time operational monitoring across national PACS kiosk fleet.")
-    
-    # Top Metrics Row
-    m1, m2, m3, m4 = st.columns(4)
-    with m1:
-        st.metric("Active Kiosks", "142", "🟢 100% Online")
-    with m2:
-        st.metric("Total Voice Queries", "12,840", "+14% this week")
-    with m3:
-        st.metric("Avg Response Time", "820 ms", "-50 ms optimal")
-    with m4:
-        st.metric("Pending Grievances", "8", "3 Overdue")
+# -----------------------------------------------------------------------------
+# Helpers
+# -----------------------------------------------------------------------------
+def html_card(content, cls=""):
+    st.markdown(f'<div class="card {cls}">{content}</div>', unsafe_allow_html=True)
 
-    st.divider()
 
-    # Visual Analytics Section
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        st.markdown("<div class='admin-card'>", unsafe_allow_html=True)
-        st.markdown("### 🌾 Query Volume by Scheme")
-        chart_data = pd.DataFrame({
-            'Scheme': ['PMFBY (Crop Insurance)', 'KCC (Credit Card)', 'PACS Bylaws', 'Soil Health Card', 'e-NAM Mandi'],
-            'Queries': [4500, 3200, 2100, 1800, 1240]
-        })
-        st.bar_chart(chart_data.set_index('Scheme'))
-        st.markdown("</div>", unsafe_allow_html=True)
+def metric_card(label, value, note="", cls=""):
+    st.markdown(
+        f'<div class="metric-card {cls}"><div class="metric-label">{label}</div>'
+        f'<div class="metric-value">{value}</div><div class="metric-note">{note}</div></div>',
+        unsafe_allow_html=True,
+    )
 
-    with c2:
-        st.markdown("<div class='admin-card'>", unsafe_allow_html=True)
-        st.markdown("### 🌐 Top Spoken Languages")
-        lang_data = pd.DataFrame({
-            'Language': ['Hindi', 'Odia', 'Marathi', 'Gujarati', 'Others'],
-            'Share (%)': [40, 22, 18, 12, 8]
-        })
-        st.dataframe(lang_data, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
 
-# 2. Grievance Management
-elif menu == "🚨 Grievance Management":
-    st.markdown("# 🚨 Grievance Redressal Portal")
-    st.markdown("Manage and resolve crop claim disputes and PACS loan complaints.")
-    
-    # Fetch latest grievances from SQLite DB
-    from db_manager import fetch_all_grievances, update_grievance_status, notify_pacs_officer
-    
-    df_grievances = fetch_all_grievances()
-    
-    if df_grievances.empty:
-        st.info("ℹ️ No grievances currently logged in the system.")
-    else:
-        st.markdown("### 📋 Active Farmer Tickets")
-        
-        # Interactive Editable Data Grid
-        edited_df = st.data_editor(
-            df_grievances,
-            column_config={
-                "id": st.column_config.NumberColumn("ID", disabled=True),
-                "ticket_id": st.column_config.TextColumn("Ticket ID", disabled=True),
-                "phone": st.column_config.TextColumn("Farmer Mobile"),
-                "query": st.column_config.TextColumn("Issue Description"),
-                "status": st.column_config.SelectboxColumn(
-                    "Status",
-                    options=["Open", "In Progress", "Resolved", "Escalated"],
-                    required=True,
-                ),
-                "priority": st.column_config.SelectboxColumn(
-                    "Priority",
-                    options=["Low", "Normal", "High", "Critical"],
-                    required=True,
+def safe_call(name, default=None, *args, **kwargs):
+    """Call an existing db_manager helper without letting an optional widget crash the portal."""
+    try:
+        module = __import__("db_manager", fromlist=[name])
+        fn = getattr(module, name)
+        return fn(*args, **kwargs)
+    except Exception:
+        return default
+
+
+def normalize_status(value):
+    return str(value or "UNKNOWN").replace("_", " ").upper()
+
+
+def make_download(data, label, filename, mime):
+    if data is None:
+        st.warning("No export data is currently available.")
+        return
+    st.download_button(label, data=data, file_name=filename, mime=mime, use_container_width=False)
+
+
+# -----------------------------------------------------------------------------
+# Authentication — authorized personnel only
+# -----------------------------------------------------------------------------
+# TEMPORARY BOOTSTRAP ACCOUNT
+# Remove/replace these values before any real government deployment.
+# The password is stored as a SHA-256 hash rather than plain text in the code.
+TEMP_ADMIN_USERNAME = os.getenv("TEMP_ADMIN_USERNAME", "admin_pacs").strip()
+TEMP_ADMIN_PASSWORD_SHA256 = os.getenv(
+    "TEMP_ADMIN_PASSWORD_SHA256",
+    "81b288c4eae1971245d697ec648ce3f7d6248da88c23f17e833ea3278d85c6c9",
+).strip().lower()
+TEMP_ADMIN_LABEL = "Temporary Bootstrap Officer"
+
+# The actual temporary password for the default account is: Temp@2026!
+# Keep this account only for initial testing and replace it with DB-backed
+# officer authentication before production deployment.
+
+def verify_admin_credentials(username, password):
+    username = (username or "").strip()
+    password = password or ""
+    if not username or not password:
+        return False
+
+    # 1) Preferred project-native authentication.
+    try:
+        result = verify_officer(username, password)
+        if isinstance(result, bool):
+            if result:
+                return True
+        elif result is not None and bool(result):
+            return True
+    except TypeError:
+        try:
+            result = verify_officer(username=username, password=password)
+            if isinstance(result, bool):
+                if result:
+                    return True
+            elif result is not None and bool(result):
+                return True
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+    # 2) Temporary bootstrap account for first-time local testing.
+    # This is intentionally separate from the normal officer database.
+    if username == TEMP_ADMIN_USERNAME:
+        supplied_hash = hashlib.sha256(password.encode("utf-8")).hexdigest().lower()
+        if supplied_hash == TEMP_ADMIN_PASSWORD_SHA256:
+            return True
+
+    # 3) Optional environment fallback for deployments that do not use the DB auth helper.
+    env_user = os.getenv("ADMIN_USERNAME", "").strip()
+    env_hash = os.getenv("ADMIN_PASSWORD_SHA256", "").strip().lower()
+    if env_user and env_hash and username == env_user:
+        return hashlib.sha256(password.encode("utf-8")).hexdigest().lower() == env_hash
+    return False
+
+
+if "admin_authenticated" not in st.session_state:
+    st.session_state.admin_authenticated = False
+if "admin_username" not in st.session_state:
+    st.session_state.admin_username = ""
+if "admin_auth_source" not in st.session_state:
+    st.session_state.admin_auth_source = ""
+
+if not st.session_state.admin_authenticated:
+    st.markdown('<div class="gov-ribbon"></div>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="login-shell">
+          <div class="login-card">
+            <div class="gov-kicker">PACS Governance Network</div>
+            <div class="login-title">🏛️ Sahakar-Vaani Administration</div>
+            <div class="login-note" style="margin-top:8px;">
+              Restricted administrative console for authorised government and PACS officers.
+              Operational telemetry, grievance records, policy indexing, reports and system controls
+              are available only after successful officer authentication.
+            </div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+    with st.form("admin_login", clear_on_submit=False):
+        username = st.text_input("Officer ID / Username", placeholder="Enter authorised officer ID")
+        password = st.text_input("Password", type="password", placeholder="Enter password")
+        submitted = st.form_submit_button("🔐 Sign in to secure portal", type="primary", use_container_width=True)
+        if submitted:
+            if verify_admin_credentials(username, password):
+                st.session_state.admin_authenticated = True
+                st.session_state.admin_username = username
+                st.session_state.admin_auth_source = (
+                    "temporary bootstrap" if username == TEMP_ADMIN_USERNAME else "authorised officer"
                 )
-            },
-            hide_index=True,
-            num_rows="fixed",
-            use_container_width=True
+                safe_call("log_admin_access_event", None, username)
+                st.rerun()
+            else:
+                st.error("Authentication failed. Please use an authorised officer account.")
+    st.info(
+        f"Temporary testing account enabled: Officer ID `{TEMP_ADMIN_USERNAME}`. "
+        "Use the temporary password supplied with this build. Replace this account before production use.",
+        icon="🔐",
+    )
+    st.caption("Access is restricted to authorised personnel. Do not share credentials.")
+    st.stop()
+
+# -----------------------------------------------------------------------------
+# Header / custom hamburger navigation
+# -----------------------------------------------------------------------------
+st.markdown(
+    f"""
+    <div class="gov-header">
+      <div class="gov-header-grid">
+        <div class="gov-emblem">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="Government of India emblem">
+        </div>
+        <div class="gov-title-panel">
+          <div class="gov-kicker">PACS Governance Network • Administrative Console</div>
+          <div class="gov-title">Sahakar-Vaani Government Operations Portal</div>
+          <div class="gov-subtitle">Secure oversight of multilingual agricultural voice kiosks, grievances, policy knowledge and operational telemetry.</div>
+          <div class="tricolor-bar"></div>
+        </div>
+        <div class="secure-pill">● AUTHENTICATED OFFICER</div>
+      </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# The hamburger is intentionally placed below the title row so it never pushes
+# the dashboard outside the centered content width.
+nav_left, nav_spacer = st.columns([0.08, 0.92], gap="small")
+with nav_left:
+    with st.popover("☰", help="Open portal features"):
+        st.markdown('<div class="menu-popover-title">Portal features</div>', unsafe_allow_html=True)
+        st.markdown('<div class="menu-popover-subtitle">Select an administrative area.</div>', unsafe_allow_html=True)
+        menu = st.radio(
+            "Portal navigation",
+            [
+                "Executive Overview",
+                "Kiosk Operations",
+                "Grievance & SLA",
+                "Telemetry & Analytics",
+                "Knowledge & Reports",
+                "Security & Maintenance",
+            ],
+            key="portal_menu",
+            label_visibility="collapsed",
         )
-        
-        # Save Changes Button
-        if st.button("💾 Save Status Changes", type="primary"):
-            for index, row in edited_df.iterrows():
-                update_grievance_status(row.get("ticket_id", row.get("id")), row["status"], row.get("priority", "Normal"))
-            st.success("✅ Grievance records successfully updated!")
+        st.markdown(
+            f"""
+            <div class="menu-user">
+              <div class="menu-user-name">👤 {st.session_state.admin_username or 'Authorised Officer'}</div>
+              <div class="menu-user-role">{TEMP_ADMIN_LABEL if st.session_state.admin_auth_source == 'temporary bootstrap' else 'Government / PACS Administrative Access'}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("🚪 Sign out", key="menu_sign_out", use_container_width=True):
+            st.session_state.admin_authenticated = False
+            st.session_state.admin_username = ""
+            st.session_state.admin_auth_source = ""
             st.rerun()
 
-        st.markdown("---")
-        
-        # Dispatch Field Officer Alert Form
-        st.markdown("### 📱 Dispatch Instant SMS Alert to PACS Officer")
-        col_t, col_p, col_b = st.columns([2, 2, 2])
-        
-        with col_t:
-            selected_ticket = st.selectbox("Select Ticket ID", df_grievances["ticket_id"].unique() if "ticket_id" in df_grievances else df_grievances["id"])
-        with col_p:
-            officer_phone = st.text_input("Officer Mobile Number", value="+919123456789")
-        with col_b:
-            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-            if st.button("🚨 Send SMS Alert"):
-                notify_pacs_officer(selected_ticket, officer_phone, "Grievance pending urgent action.")
-                st.success(f"📲 SMS notification dispatched for Ticket {selected_ticket}!")
+# Log current session access without blocking the UI.
+safe_call("log_admin_access_event", None, st.session_state.admin_username or "ADMIN")
 
-# 3. Live Telemetry Logs
-elif menu == "🎙️ Live Telemetry Logs":
-    st.markdown("# 🎙️ Real-Time Kiosk Telemetry")
-    st.markdown("Inspect farmer voice queries, transcriptions, and grounding citations.")
+# -----------------------------------------------------------------------------
+# EXECUTIVE OVERVIEW
+# -----------------------------------------------------------------------------
+if menu == "Executive Overview":
+    st.markdown('<div class="page-title">Executive Operations Overview</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-subtitle">National PACS kiosk network status, service quality and officer workload at a glance.</div>', unsafe_allow_html=True)
 
-    st.markdown("<div class='admin-card'>", unsafe_allow_html=True)
-    logs = pd.DataFrame([
-        {"Timestamp": "2026-09-28 01:15", "Kiosk": "PACS-MH-012", "Language": "Hindi", "Query": "केसीसी ब्याज दर कितनी है?", "Latency": "780 ms"},
-        {"Timestamp": "2026-09-28 01:10", "Kiosk": "PACS-OD-004", "Language": "Odia", "Query": "ଫସଲ କ୍ଷତି ବୀମା ଦାବି କିପରି କରିବି?", "Latency": "840 ms"}
-    ])
-    st.dataframe(logs, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    daily = safe_call("fetch_daily_performance_summary", {
+        "today_queries": 0, "avg_latency_ms": 0, "avg_confidence_pct": 0
+    }) or {}
+    active_nodes = safe_call("fetch_active_kiosk_nodes", []) or []
+    escalated = safe_call("fetch_escalated_grievances", [], max_hours=48) or []
+    gaps = safe_call("fetch_recent_knowledge_gaps", [], 5) or []
+    sla = safe_call("fetch_grievance_sla_breakdown", {
+        "under_24h": 0, "warning_24_48h": 0, "breached_48h": 0
+    }) or {}
 
-# 4. Report Export
-elif menu == "📑 Report Export":
-    st.markdown("# 📑 Governance & Audit Reports")
-    st.markdown("Generate and export official PDF analytics reports for regional officers.")
+    total_nodes = len(active_nodes)
+    online_nodes = sum(1 for row in active_nodes if len(row) >= 5 and str(row[4]).upper() in {"ONLINE", "ACTIVE"})
+    online_text = f"{online_nodes}/{total_nodes} reported online" if total_nodes else "No kiosk heartbeat data"
 
-    st.markdown("<div class='admin-card'>", unsafe_allow_html=True)
-    st.write("Click below to generate the weekly operational telemetry summary.")
-    
-    if st.button("📄 Generate Weekly PDF Report"):
-        st.info("Generating PDF report via `report_generator.py`...")
-        st.success("✅ Weekly Report Generated! Download available below.")
-        st.download_button("⬇️ Download PDF Report", data=b"Sample PDF Content", file_name="weekly_pacs_report.pdf")
-    st.markdown("</div>", unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: metric_card("Queries today", daily.get("today_queries", 0), "Current operating day", "card-blue")
+    with c2: metric_card("Average latency", f"{daily.get('avg_latency_ms', 0)} ms", "Recorded kiosk response time", "card-accent")
+    with c3: metric_card("RAG match quality", f"{daily.get('avg_confidence_pct', 0)}%", "Average grounding confidence", "card-green")
+    with c4: metric_card("SLA breaches", sla.get("breached_48h", len(escalated)), "Open tickets older than 48 hours", "card-danger")
 
-# 5. Security Settings
-elif menu == "🔐 Security Settings":
-    st.markdown("# 🔐 Officer Authentication Settings")
-    st.markdown("<div class='admin-card'>", unsafe_allow_html=True)
-    st.text_input("Current Officer Username", value="admin_pacs")
-    st.text_input("New Password", type="password")
-    if st.button("Update Credentials"):
-        st.success("✅ Credentials updated successfully!")
-    st.markdown("</div>", unsafe_allow_html=True)
-    # ==========================================
-# NEW FEATURE: SYSTEM MAINTENANCE WIDGET
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("⚙️ System Maintenance")
-if st.sidebar.button("🧹 Clear Old Audio Cache"):
-    from db_manager import cleanup_old_audio_cache
-    removed_files = cleanup_old_audio_cache()
-    st.sidebar.success(f"Cleared {removed_files} expired audio cache files!")
-    # ==========================================
-# NEW FEATURE: ANALYTICS DASHBOARD WIDGET
-# ==========================================
-st.markdown("---")
-st.header("📊 Real-Time Telemetry & Performance")
+    # Full-width operational posture keeps all three signals aligned and
+    # prevents nested Streamlit columns from creating uneven vertical blocks.
+    html_card('<div class="section-title">Operational posture</div><div class="small-muted">Live signals from the kiosk and governance database.</div>', "card-blue")
+    p1, p2, p3 = st.columns(3)
+    with p1:
+        metric_card("Kiosk nodes", total_nodes, "Registered / reporting nodes")
+    with p2:
+        metric_card("Online", online_nodes, online_text, "card-green")
+    with p3:
+        metric_card("Knowledge gaps", len(gaps), "Recent unresolved retrieval gaps", "card-accent")
 
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader("🌐 Queries by Language")
-    from db_manager import fetch_analytics_summary
-    lang_data, latency_data = fetch_analytics_summary()
-    if lang_data:
-        for lang, count in lang_data:
-            st.write(f"• **{lang}**: {count} queries")
+    st.markdown('<div class="section-title">Officer attention queue</div>', unsafe_allow_html=True)
+    if escalated:
+        qcols = st.columns(2)
+        for idx, (t_id, ts, k_id, ph, q, age) in enumerate(escalated[:6]):
+            with qcols[idx % 2]:
+                st.markdown(
+                    f'<div class="card card-danger"><b>{t_id}</b> • {int(age)}h pending<br>'
+                    f'<span class="small-muted">Kiosk {k_id} • {ph}</span><br>{str(q)[:120]}</div>',
+                    unsafe_allow_html=True,
+                )
     else:
-        st.info("No query telemetry recorded yet.")
+        st.success("No grievance tickets currently beyond the 48-hour SLA threshold.")
 
-with col2:
-    st.subheader("⚡ Avg Response Latency")
-    if latency_data:
-        for lang, avg_ms in latency_data:
-            st.write(f"• **{lang}**: `{int(avg_ms)} ms`")
+    st.markdown('<div class="section-title">Kiosk network</div>', unsafe_allow_html=True)
+    if active_nodes:
+        rows = []
+        for row in active_nodes:
+            k_id, state, district, last_seen, status = row[:5]
+            rows.append({"Kiosk": k_id, "State": state, "District": district, "Last seen": last_seen, "Status": status})
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
     else:
-        st.info("Latency metrics will render after first query.")
-        # ==========================================
-# NEW FEATURE: TICKET RESOLUTION CONTROLLER
-# ==========================================
-st.markdown("---")
-st.subheader("🛠️ Grievance Action Center")
+        st.info("No kiosk heartbeat records are available yet.")
 
-with st.expander("Update Ticket Status"):
-    ticket_input = st.text_input("Enter Ticket ID (e.g., TICK-1234):")
-    status_choice = st.selectbox("Update Status:", ["IN_PROGRESS", "RESOLVED", "REJECTED"])
-    officer_notes = st.text_area("Officer Action Notes / Remarks:")
-    
-    if st.button("Submit Grievance Update"):
-        if ticket_input:
-            from db_manager import update_grievance_status
-            update_grievance_status(ticket_input, status_choice, officer_notes)
-            st.success(f"Ticket {ticket_input} successfully updated to {status_choice}!")
+    st.markdown('<div class="section-title">Service mix today</div>', unsafe_allow_html=True)
+    cat_stats = safe_call("fetch_today_category_breakdown", {}) or {}
+    cols = st.columns(4)
+    for col, label, key in zip(
+        cols,
+        ["KCC / Credit", "Crop insurance", "PACS bylaws", "General schemes"],
+        ["LOAN_KCC", "CROP_INSURANCE", "PACS_BYLAWS", "GENERAL_SCHEMES"],
+    ):
+        with col:
+            metric_card(label, cat_stats.get(key, 0), "Queries recorded today")
+
+    st.markdown('<div class="section-title">Language usage</div>', unsafe_allow_html=True)
+    lang_stats = safe_call("fetch_language_breakdown_stats", {}) or {}
+    if lang_stats:
+        df_lang = pd.DataFrame(list(lang_stats.items()), columns=["Language", "Queries"])
+        st.bar_chart(df_lang.set_index("Language"), height=300)
+    else:
+        st.info("Language telemetry will appear after kiosk queries are recorded.")
+
+# -----------------------------------------------------------------------------
+# KIOSK OPERATIONS
+# -----------------------------------------------------------------------------
+elif menu == "Kiosk Operations":
+    st.markdown('<div class="page-title">Kiosk Operations Centre</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-subtitle">Monitor terminal heartbeats, hardware resources, cache storage and broadcast controls.</div>', unsafe_allow_html=True)
+
+    tabs = st.tabs(["Live fleet", "Hardware health", "Broadcast", "Storage & backups"])
+
+    with tabs[0]:
+        st.markdown('<div class="section-title">Registered PACS kiosk terminals</div>', unsafe_allow_html=True)
+        active_nodes = safe_call("fetch_active_kiosk_nodes", []) or []
+        if active_nodes:
+            for start in range(0, len(active_nodes), 3):
+                cols = st.columns(3)
+                for col, row in zip(cols, active_nodes[start:start+3]):
+                    k_id, state, district, last_seen, status = row[:5]
+                    online = str(status).upper() in {"ONLINE", "ACTIVE"}
+                    with col:
+                        html_card(
+                            f'<b>Kiosk {k_id}</b><br><span class="small-muted">{state} • {district}</span><br>'
+                            f'<span class="status-pill {"status-online" if online else "status-offline"}">● {status}</span><br>'
+                            f'<span class="small-muted">Last heartbeat: {last_seen}</span>',
+                            "card-green" if online else "card-danger",
+                        )
         else:
-            st.warning("Please enter a valid Ticket ID.")
-            # ==========================================
-# NEW FEATURE: SYSTEM HEALTH DIAGNOSTICS WIDGET
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("🏥 Kiosk Hardware Health")
+            st.info("No active kiosk heartbeats logged yet.")
 
-if st.sidebar.button("Run Diagnostic Check"):
-    from db_manager import get_system_health
-    health = get_system_health()
-    st.sidebar.write(f"• **Free Disk**: `{health['disk_free_gb']} GB`")
-    st.sidebar.write(f"• **Database**: `{health['db_status']}`")
-    st.sidebar.caption(f"Last checked: {health['timestamp']}")
-    # ==========================================
-# NEW FEATURE: CSV REPORT DOWNLOAD BUTTON
-# ==========================================
-st.markdown("---")
-st.subheader("📥 Export Grievance Data")
-
-from db_manager import export_grievances_to_csv
-csv_data = export_grievances_to_csv()
-
-st.download_button(
-    label="📄 Download All Grievances (.CSV)",
-    data=csv_data,
-    file_name="Sahakar_Vaani_Grievances_Export.csv",
-    mime="text/csv"
-)
-# ==========================================
-# NEW FEATURE: KNOWLEDGE GAP AUDIT WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("❓ Unresolved Queries & Knowledge Gaps")
-
-from db_manager import fetch_unresolved_queries
-low_conf_logs = fetch_unresolved_queries()
-
-if low_conf_logs:
-    st.caption("Queries with low confidence scores (<80% match):")
-    for ts, k_id, lang, q in low_conf_logs:
-        st.write(f"• **[{ts}]** `{k_id}` ({lang}): *\"{q}\"*")
-else:
-    st.info("No knowledge gaps detected. RAG engine match confidence is high!")
-    # ==========================================
-# NEW FEATURE: CHROMADB METRICS WIDGET
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("📚 Knowledge Base Status")
-if st.sidebar.button("Check Vector Index Count"):
-    from db_manager import get_chroma_vector_count
-    count = get_chroma_vector_count()
-    st.sidebar.info(f"Indexed Document Chunks: **{count}**")
-    # ==========================================
-# NEW FEATURE: SLA ESCALATION WARNING BANNER
-# ==========================================
-from db_manager import fetch_escalated_grievances
-escalated_tickets = fetch_escalated_grievances(max_hours=48)
-
-if escalated_tickets:
-    st.error(f"⚠️ **SLA WARNING**: {len(escalated_tickets)} Grievance Ticket(s) pending for over 48 hours!")
-    with st.expander("View Overdue Tickets"):
-        for t_id, ts, k_id, ph, q, age in escalated_tickets:
-            st.write(f"• **Ticket {t_id}** ({age} hrs old) | Kiosk: `{k_id}` | Phone: `{ph}`")
-            # ==========================================
-# NEW FEATURE: CACHE DISK USAGE WIDGET
-# ==========================================
-from db_manager import get_audio_cache_size
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("💾 Audio Cache Storage")
-cache_mb = get_audio_cache_size()
-st.sidebar.write(f"• **Cache Size**: `{cache_mb} MB`")
-# ==========================================
-# NEW FEATURE: KIOSK NODES LIVE MONITOR
-# ==========================================
-st.markdown("---")
-st.subheader("📡 Registered PACS Kiosk Terminals")
-
-from db_manager import fetch_active_kiosk_nodes
-active_nodes = fetch_active_kiosk_nodes()
-
-if active_nodes:
-    cols = st.columns(len(active_nodes) if len(active_nodes) < 4 else 4)
-    for idx, (k_id, state, dist, last_s, status) in enumerate(active_nodes):
-        with cols[idx % 4]:
-            st.metric(label=f"Kiosk: {k_id}", value=status, delta=f"District: {dist}")
-            st.caption(f"Last Seen: {last_s}")
-else:
-    st.info("No active kiosk heartbeats logged yet.")
-    # ==========================================
-# NEW FEATURE: DAILY PERFORMANCE METRICS
-# ==========================================
-st.markdown("---")
-st.subheader("📈 Today's Executive Operational Summary")
-
-from db_manager import fetch_daily_performance_summary
-daily_summary = fetch_daily_performance_summary()
-
-m_col1, m_col2, m_col3 = st.columns(3)
-m_col1.metric("Queries Today", daily_summary["today_queries"])
-m_col2.metric("Avg Latency", f"{daily_summary['avg_latency_ms']} ms")
-m_col3.metric("RAG Match Quality", f"{daily_summary['avg_confidence_pct']}%")
-# ==========================================
-# NEW FEATURE: MANUAL RE-INDEXING WIDGET
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("🔄 Knowledge Base Management")
-
-if st.sidebar.button("Re-index Policy Vector Store"):
-    try:
-        from ingest import ingest_documents
-        with st.sidebar.spinner("Processing PDF documents in /data..."):
-            ingest_documents()
-        st.sidebar.success("Vector index successfully updated!")
-    except Exception as e:
-        st.sidebar.error(f"Ingestion failed: {e}")
-        # ==========================================
-# NEW FEATURE: ADMINISTRATIVE AUDIT TRAIL WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("📜 Officer Operations Audit Trail")
-
-from db_manager import fetch_admin_audit_logs
-audit_logs = fetch_admin_audit_logs()
-
-if audit_logs:
-    for ts, officer, action, details in audit_logs:
-        st.write(f"• **[{ts}]** `{officer}` → **{action}**: *{details}*")
-else:
-    st.info("No administrative actions recorded in audit log yet.")
-    # ==========================================
-# NEW FEATURE: LANGUAGE DEMOGRAPHICS WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("🗣️ Indic Language Usage Distribution")
-
-from db_manager import fetch_language_demographics
-lang_stats = fetch_language_demographics()
-
-if lang_stats:
-    st.write("Percentage breakdown of queries served:")
-    for lang, pct in lang_stats.items():
-        st.progress(pct / 100, text=f"**{lang}**: {pct}%")
-else:
-    st.info("No language telemetry recorded yet.")
-    # ==========================================
-# NEW FEATURE: PEAK USAGE HOURS WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("⏰ Peak Kiosk Traffic Hours")
-
-from db_manager import fetch_peak_usage_hours
-peak_hours = fetch_peak_usage_hours()
-
-if peak_hours:
-    cols = st.columns(len(peak_hours) if len(peak_hours) < 5 else 5)
-    for idx, (hr, count) in enumerate(peak_hours):
-        with cols[idx]:
-            st.metric(label=f"Hour {hr}:00", value=f"{count} queries")
-else:
-    st.info("Insufficient timestamp data to display peak traffic hours.")
-    # ==========================================
-# NEW FEATURE: DISTRICT TELEMETRY EXPLORER
-# ==========================================
-st.markdown("---")
-st.subheader("📍 District-Level Kiosk Analytics")
-
-dist_input = st.text_input("Enter District Name (e.g., Pune District):", value="Pune District")
-if st.button("Fetch District Telemetry"):
-    from db_manager import fetch_logs_by_district
-    dist_logs = fetch_logs_by_district(dist_input)
-    if dist_logs:
-        st.success(f"Found {len(dist_logs)} query records for {dist_input}")
-        for ts, k_id, lang, q, r in dist_logs:
-            st.write(f"• **[{ts}]** `{k_id}` ({lang}): *\"{q}\"*")
-    else:
-        st.info(f"No active query telemetry found for district: {dist_input}")
-        # ==========================================
-# NEW FEATURE: INGESTION HISTORY WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("📚 Policy Document Ingestion History")
-
-from db_manager import fetch_ingestion_logs
-ingest_history = fetch_ingestion_logs()
-
-if ingest_history:
-    for ts, fname, chunks, status in ingest_history:
-        st.write(f"• **[{ts}]** `{fname}` — {chunks} chunks indexed ({status})")
-else:
-    st.info("No document ingestion events logged yet.")
-    # ==========================================
-# NEW FEATURE: SQLITE VACUUM WIDGET
-# ==========================================
-st.sidebar.markdown("---")
-if st.sidebar.button("⚡ Optimize SQLite Storage"):
-    from db_manager import optimize_sqlite_database
-    if optimize_sqlite_database():
-        st.sidebar.success("Database vacuumed and optimized!")
-    else:
-        st.sidebar.error("Failed to optimize database.")
-        # ==========================================
-# NEW FEATURE: TELEMETRY PURGE WIDGET
-# ==========================================
-st.sidebar.markdown("---")
-if st.sidebar.button("🧹 Purge >30 Day Telemetry"):
-    from db_manager import purge_old_telemetry_logs
-    count = purge_old_telemetry_logs(30)
-    st.sidebar.success(f"Purged {count} expired telemetry logs!")
-    # ==========================================
-# NEW FEATURE: RESOLUTION KPI WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("⏱️ Grievance SLA Efficiency Metrics")
-
-from db_manager import fetch_average_resolution_time_hours
-avg_hours = fetch_average_resolution_time_hours()
-
-st.metric(label="Avg Ticket Resolution Time", value=f"{avg_hours} Hours", delta="-2.4 hrs vs last week")
-# ==========================================
-# NEW FEATURE: AUDIO INTEGRITY BUTTON
-# ==========================================
-if st.sidebar.button("🔍 Sanity Check Audio Cache"):
-    from db_manager import validate_and_clean_audio_cache
-    cleaned = validate_and_clean_audio_cache()
-    st.sidebar.info(f"Integrity check complete. Removed {cleaned} zero-byte files.")
-    # ==========================================
-# NEW FEATURE: HIGH PRIORITY GRIEVANCE TAB
-# ==========================================
-st.markdown("---")
-st.subheader("🚨 Priority Escalations")
-
-import sqlite3
-conn = sqlite3.connect(DB_FILE)
-cursor = conn.cursor()
-try:
-    cursor.execute("SELECT ticket_id, timestamp, phone, query FROM grievances WHERE status = 'OPEN' ORDER BY id DESC")
-    open_tickets = cursor.fetchall()
-finally:
-    conn.close()
-
-high_priority_count = 0
-if open_tickets:
-    for t_id, ts, ph, q in open_tickets:
-        from db_manager import classify_grievance_priority
-        priority = classify_grievance_priority(q)
-        if "HIGH" in priority:
-            high_priority_count += 1
-            st.error(f"• **[{t_id}]** `{ph}` ({ts}) — Priority: **{priority}**\n\n  *\"{q}\"*")
-
-if high_priority_count == 0:
-    st.success("No high-priority grievance escalations pending.")
-    # ==========================================
-# NEW FEATURE: BULK TICKET RESOLVE BUTTON
-# ==========================================
-st.sidebar.markdown("---")
-if st.sidebar.button("✅ Bulk Resolve All Open Tickets"):
-    from db_manager import bulk_resolve_open_grievances
-    count = bulk_resolve_open_grievances()
-    st.sidebar.success(f"Bulk updated {count} tickets to RESOLVED status!")
-    # ==========================================
-# NEW FEATURE: INGESTION LOG CSV DOWNLOAD
-# ==========================================
-st.markdown("---")
-st.subheader("📄 Export Document Ingestion History")
-
-from db_manager import export_ingestion_logs_to_csv
-ingest_csv_data = export_ingestion_logs_to_csv()
-
-st.download_button(
-    label="📄 Download Ingestion Audit Log (.CSV)",
-    data=ingest_csv_data,
-    file_name="Sahakar_Vaani_Ingestion_Audit.csv",
-    mime="text/csv"
-)
-# ==========================================
-# NEW FEATURE: LOG ADMIN ACCESS ON LOAD
-# ==========================================
-from db_manager import log_admin_access_event
-log_admin_access_event("LOCAL_HOST")
-# ==========================================
-# NEW FEATURE: KIOSK SESSIONS WIDGET
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("👥 Today's Kiosk Footfall")
-
-from db_manager import fetch_today_session_count
-session_count = fetch_today_session_count()
-st.sidebar.metric(label="Active Sessions Today", value=session_count)
-# ==========================================
-# NEW FEATURE: SLA BREACH WARNING COMPONENT
-# ==========================================
-st.markdown("---")
-st.subheader("⚠️ Approaching SLA Breach (>24h Pending)")
-
-conn = sqlite3.connect(DB_FILE)
-cursor = conn.cursor()
-cursor.execute("SELECT ticket_id, timestamp, phone, query FROM grievances WHERE status = 'OPEN'")
-open_rows = cursor.fetchall()
-conn.close()
-
-breach_warning_count = 0
-for t_id, ts, ph, q in open_rows:
-    age_hrs = ticket_age_hours(ts)
-    if 24 <= age_hrs < 48:
-        breach_warning_count += 1
-        st.warning(f"• **Ticket {t_id}** ({int(age_hrs)} hrs pending) | Phone: `{ph}` | Query: *\"{q[:50]}...\"*")
-
-if breach_warning_count == 0:
-    st.info("No tickets currently in 24h–48h SLA warning window.")
-    # ==========================================
-# NEW FEATURE: SYSTEM CONFIG INSPECTOR
-# ==========================================
-with st.sidebar.expander("⚙️ Environment Configuration"):
-    st.write(f"• **Database Path**: `{DB_FILE}`")
-    st.write(f"• **Vector Store**: `ChromaDB (Local)`")
-    st.write(f"• **TTS Engine**: `AI4Bharat Offline`")
-    st.write(f"• **LLM Gateway**: `Groq API`")
-    # ==========================================
-# NEW FEATURE: CATEGORY BREAKDOWN WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("📑 Today's Inquiry Domain Breakdown")
-
-from db_manager import fetch_today_category_breakdown
-cat_stats = fetch_today_category_breakdown()
-
-c_col1, c_col2, c_col3, c_col4 = st.columns(4)
-c_col1.metric("KCC Loan Queries", cat_stats.get("LOAN_KCC", 0))
-c_col2.metric("Crop Insurance", cat_stats.get("CROP_INSURANCE", 0))
-c_col3.metric("PACS Bylaws", cat_stats.get("PACS_BYLAWS", 0))
-c_col4.metric("General Schemes", cat_stats.get("GENERAL_SCHEMES", 0))
-# ==========================================
-# NEW FEATURE: DATABASE BACKUP DOWNLOADER
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("💾 Database Backup")
-
-if os.path.exists(DB_FILE):
-    with open(DB_FILE, "rb") as db_f:
-        st.sidebar.download_button(
-            label="📦 Download SQLite Database",
-            data=db_f.read(),
-            file_name=f"kiosk_telemetry_backup_{datetime.now().strftime('%Y%m%d')}.db",
-            mime="application/x-sqlite3"
-        )
-        # ==========================================
-# NEW FEATURE: DB SIZE DISPLAY WIDGET
-# ==========================================
-st.sidebar.markdown("---")
-from db_manager import get_db_file_size_mb
-db_mb = get_db_file_size_mb()
-# ==========================================
-# STORAGE SPACE TELEMETRY (SELF-CONTAINED)
-# ==========================================
-import os
-import sqlite3
-
-_db_path = "kiosk_telemetry.db"
-if os.path.exists(_db_path):
-    _db_size_kb = os.path.getsize(_db_path) / 1024.0
-    try:
-        _conn = sqlite3.connect(_db_path)
-        _cursor = _conn.cursor()
-        _cursor.execute("PRAGMA freelist_count;")
-        _free_pages = _cursor.fetchone()[0]
-        _cursor.execute("PRAGMA page_size;")
-        _page_sz = _cursor.fetchone()[0]
-        _unused_kb = (_free_pages * _page_sz) / 1024.0
-        _conn.close()
-    except Exception:
-        _unused_kb = 0.0
-else:
-    _db_size_kb = 40.0
-    _unused_kb = 0.0
-
-st.sidebar.caption(f"💾 **Storage Space:** `{_db_size_kb:.1f} KB` | Unused: `{_unused_kb:.1f} KB`")
-# ==========================================
-# NEW FEATURE: SLA AGING TIER WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("📊 Grievance SLA Workload Tiers")
-
-from db_manager import fetch_grievance_sla_breakdown
-sla_stats = fetch_grievance_sla_breakdown()
-
-s_col1, s_col2, s_col3 = st.columns(3)
-s_col1.metric("🟢 Fresh (<24h)", sla_stats["under_24h"])
-s_col2.metric("🟡 Warning (24–48h)", sla_stats["warning_24_48h"])
-s_col3.metric("🔴 Overdue (>48h)", sla_stats["breached_48h"])
-# ==========================================
-# NEW FEATURE: VECTOR DB BACKUP BUTTON
-# ==========================================
-st.sidebar.markdown("---")
-if st.sidebar.button("📦 Backup Chroma Vector DB"):
-    from db_manager import backup_vector_store
-    archive = backup_vector_store()
-    if archive:
-        st.sidebar.success(f"Backup created: `{os.path.basename(archive)}`")
-    else:
-        st.sidebar.error("ChromaDB directory not found.")
-        # ==========================================
-# NEW FEATURE: TEMP AUDIO CLEANUP BUTTON
-# ==========================================
-st.sidebar.markdown("---")
-if st.sidebar.button("🎙️ Purge >24h Audio Inputs"):
-    from db_manager import cleanup_temp_audio_files
-    cleaned_wavs = cleanup_temp_audio_files(".", 24)
-    st.sidebar.success(f"Purged {cleaned_wavs} temporary WAV recording files!")
-    # ==========================================
-# NEW FEATURE: SATISFACTION SCORE WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("⭐ Farmer Satisfaction & Feedback Rating")
-
-from db_manager import fetch_average_feedback_rating
-rating_info = fetch_average_feedback_rating()
-
-r_col1, r_col2 = st.columns(2)
-r_col1.metric("Average Rating", f"{rating_info['avg_rating']} / 5.0")
-r_col2.metric("Total Ratings Received", rating_info["total_ratings"])
-# ==========================================
-# NEW FEATURE: NODAL OFFICER DIRECTORY WIDGET
-# ==========================================
-st.sidebar.markdown("---")
-with st.sidebar.expander("📞 Regional Escalation Nodal Contacts"):
-    officer_info = get_district_officer_contact("Pune District")
-    st.write(f"• **Nodal**: {officer_info['officer']}")
-    st.write(f"• **Phone**: `{officer_info['phone']}`")
-    st.write(f"• **Email**: `{officer_info['email']}`")
-    # ==========================================
-# NEW FEATURE: VECTOR RETRIEVAL TEST SANDBOX
-# ==========================================
-st.markdown("---")
-st.subheader("🧪 Policy Vector Index Inspection Sandbox")
-
-test_query = st.text_input("Enter test search query (e.g., KCC interest subvention):")
-if st.button("Run Vector Match Test"):
-    if test_query:
-        try:
-            from rag_engine import load_vector_db
-            db = load_vector_db()
-            results = db.similarity_search_with_score(test_query, k=3)
-            
-            if results:
-                st.success(f"Retrieved {len(results)} matching document chunks:")
-                for idx, (doc, score) in enumerate(results, 1):
-                    src = doc.metadata.get("source", "Unknown")
-                    st.markdown(f"**Match #{idx}** (Distance: `{round(score, 3)}` | Source: `{os.path.basename(src)}`)")
-                    st.info(doc.page_content[:250] + "...")
+        st.markdown('<div class="section-title">District telemetry explorer</div>', unsafe_allow_html=True)
+        district = st.text_input("District name", value="Pune District", key="district_explorer")
+        if st.button("Fetch district telemetry", key="fetch_district"):
+            rows = safe_call("fetch_logs_by_district", [], district) or []
+            if rows:
+                df = pd.DataFrame(rows, columns=["Timestamp", "Kiosk", "Language", "Query", "Response"][:len(rows[0])])
+                st.dataframe(df, use_container_width=True, hide_index=True)
             else:
-                st.warning("No matches found in ChromaDB vector store.")
-        except Exception as e:
-            st.error(f"Vector search test failed: {e}")
-            # ==========================================
-# NEW FEATURE: BROADCAST MESSAGE PUBLISHER
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("📢 Publish Kiosk Notice")
+                st.info(f"No query telemetry found for {district}.")
 
-new_notice = st.sidebar.text_input("Notice Text:")
-if st.sidebar.button("Publish Broadcast Notice"):
-    if new_notice:
-        from db_manager import set_pacs_broadcast_message
-        set_pacs_broadcast_message(new_notice)
-        st.sidebar.success("Broadcast notice updated across kiosks!")
-        # ==========================================
-# NEW FEATURE: REPAIR SCHEMA BUTTON
-# ==========================================
-st.sidebar.markdown("---")
-if st.sidebar.button("🛠️ Verify & Repair DB Schema"):
-    from db_manager import verify_and_repair_schema
-    verify_and_repair_schema()
-    st.sidebar.success("Database schema verified and repaired!")
-    # ==========================================
-# NEW FEATURE: AUDIO STORAGE GAUGE
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("🎙️ Audio Cache Quota")
+    with tabs[1]:
+        st.markdown('<div class="section-title">Cluster subsystem diagnostics</div>', unsafe_allow_html=True)
+        sys_h = safe_call("get_system_health", {}) or {}
+        vec_h = safe_call("verify_vector_search_health", {}) or {}
+        net_online = safe_call("is_internet_available", False)
+        a, b, c = st.columns(3)
+        with a: st.metric("SQLite telemetry DB", sys_h.get("db_status", "Unknown"), f"{sys_h.get('disk_free_gb', 0)} GB free")
+        with b: st.metric("ChromaDB vector engine", vec_h.get("status", "Unknown"), f"{vec_h.get('collection_count', vec_h.get('collections', 0))} collections")
+        with c: st.metric("Groq cloud link", "ONLINE" if net_online else "OFFLINE", "Fallback available")
 
-from db_manager import get_audio_cache_size
-cache_mb = get_audio_cache_size()
-quota_pct = min(100.0, (cache_mb / 100.0) * 100.0)
+        st.markdown('<div class="section-title">Hardware resource telemetry</div>', unsafe_allow_html=True)
+        hw = safe_call("fetch_hardware_resource_telemetry", {}) or {}
+        h1, h2, h3 = st.columns(3)
+        with h1: st.metric("CPU", f"{hw.get('cpu_pct', 0)}%")
+        with h2: st.metric("RAM", f"{hw.get('ram_pct', 0)}%")
+        with h3: st.metric("Disk", f"{hw.get('disk_pct', 0)}%")
+        if st.button("Run full diagnostic check"):
+            health = safe_call("get_system_health", {}) or {}
+            st.success(f"Diagnostic completed at {health.get('timestamp', datetime.now().isoformat())}.")
+            st.json(health)
 
-st.sidebar.progress(quota_pct / 100.0, text=f"{cache_mb} MB / 100 MB used")
-if quota_pct > 80.0:
-    st.sidebar.warning("⚠️ Audio cache near full capacity! Consider purging.")
-    # ==========================================
-# NEW FEATURE: INDEXED CHUNKS METRIC
-# ==========================================
-st.markdown("---")
-st.subheader("📚 Knowledge Base Vector Index Status")
+    with tabs[2]:
+        st.markdown('<div class="section-title">Kiosk notice broadcast</div>', unsafe_allow_html=True)
+        st.caption("Publish a controlled notice to kiosk terminals through the existing PACS broadcast mechanism.")
+        notice = st.text_area("Announcement", height=100, placeholder="Enter the approved notice for kiosk screens…")
+        if st.button("Publish notice to kiosk network", type="primary"):
+            if notice.strip():
+                ok = safe_call("set_pacs_broadcast_message", False, notice.strip())
+                st.success("Broadcast notice updated across kiosk terminals." if ok is not False else "Broadcast notice submitted.")
+            else:
+                st.warning("Enter an announcement before publishing.")
 
-from rag_engine import get_total_indexed_chunks_count
-total_chunks = get_total_indexed_chunks_count()
+    with tabs[3]:
+        st.markdown('<div class="section-title">Storage and backup controls</div>', unsafe_allow_html=True)
+        db_mb = safe_call("get_db_file_size_mb", 0) or 0
+        cache_mb = safe_call("get_audio_cache_size", 0) or 0
+        m1, m2 = st.columns(2)
+        with m1: metric_card("Database size", f"{db_mb} MB", "SQLite telemetry database")
+        with m2: metric_card("Audio cache", f"{cache_mb} MB", "Cached recordings and responses")
 
-st.metric(label="Total Active Policy Chunks Indexed", value=f"{total_chunks} Chunks", delta="ChromaDB Active")
-# ==========================================
-# NEW FEATURE: HARDWARE TELEMETRY SIDEBAR WIDGET
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("💻 Kiosk Hardware Telemetry")
+        if os.path.exists(DB_FILE):
+            with open(DB_FILE, "rb") as db_f:
+                st.download_button(
+                    "📦 Download SQLite database backup",
+                    data=db_f.read(),
+                    file_name=f"sahakar_vaani_db_{datetime.now().strftime('%Y%m%d')}.db",
+                    mime="application/x-sqlite3",
+                )
 
-from db_manager import fetch_hardware_resource_telemetry
-hw_stats = fetch_hardware_resource_telemetry()
+        a, b, c = st.columns(3)
+        with a:
+            if st.button("Clear expired audio cache"):
+                n = safe_call("cleanup_old_audio_cache", 0)
+                st.success(f"Cleared {n} expired audio files.")
+        with b:
+            if st.button("Validate audio cache"):
+                n = safe_call("validate_and_clean_audio_cache", 0)
+                st.success(f"Removed {n} invalid audio files.")
+        with c:
+            if st.button("Optimize SQLite storage"):
+                ok = safe_call("optimize_sqlite_database", False)
+                st.success("SQLite storage optimized." if ok else "SQLite optimization could not be completed.")
 
-st.sidebar.caption(f"⚙️ CPU Usage: `{hw_stats['cpu_pct']}%`")
-st.sidebar.caption(f"🧠 RAM Usage: `{hw_stats['ram_pct']}%`")
-st.sidebar.caption(f"💽 Disk Usage: `{hw_stats['disk_pct']}%`")
-# ==========================================
-# NEW FEATURE: DAILY TELEMETRY CSV BUTTON
-# ==========================================
-st.sidebar.markdown("---")
-from db_manager import export_today_telemetry_csv
-daily_csv = export_today_telemetry_csv()
+        if st.button("Create compressed database backup (.db.gz)"):
+            archive = safe_call("generate_compressed_db_backup", None)
+            if archive:
+                st.success(f"Backup created: {os.path.basename(archive)}")
+            else:
+                st.error("Backup could not be created.")
 
-st.sidebar.download_button(
-    label="📊 Download Today's Query Log (.CSV)",
-    data=daily_csv,
-    file_name=f"Sahakar_Vaani_Queries_{datetime.now().strftime('%Y%m%d')}.csv",
-    mime="text/csv"
+# -----------------------------------------------------------------------------
+# GRIEVANCE & SLA
+# -----------------------------------------------------------------------------
+elif menu == "Grievance & SLA":
+    st.markdown('<div class="page-title">Grievance Redressal & SLA Centre</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-subtitle">Review farmer grievances, assign action, track SLA ageing and maintain the resolution audit trail.</div>', unsafe_allow_html=True)
+
+    tabs = st.tabs(["Open tickets", "SLA workload", "Ticket action", "Exports"])
+
+    with tabs[0]:
+        grievances = safe_call("fetch_all_grievances", pd.DataFrame())
+        if not isinstance(grievances, pd.DataFrame):
+            grievances = pd.DataFrame(grievances or [])
+        if grievances.empty:
+            st.info("No grievance records are currently available.")
+        else:
+            st.markdown('<div class="section-title">Active grievance register</div>', unsafe_allow_html=True)
+            edited = st.data_editor(
+                grievances,
+                column_config={
+                    "id": st.column_config.NumberColumn("ID", disabled=True),
+                    "ticket_id": st.column_config.TextColumn("Ticket ID", disabled=True),
+                    "phone": st.column_config.TextColumn("Farmer mobile"),
+                    "query": st.column_config.TextColumn("Issue description"),
+                    "status": st.column_config.SelectboxColumn("Status", options=["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED", "ESCALATED"], required=True),
+                    "priority": st.column_config.SelectboxColumn("Priority", options=["LOW", "NORMAL", "HIGH", "CRITICAL"], required=True),
+                },
+                hide_index=True,
+                num_rows="fixed",
+                use_container_width=True,
+            )
+            if st.button("Save grievance changes", type="primary"):
+                for _, row in edited.iterrows():
+                    safe_call("update_grievance_status", None, row.get("ticket_id", row.get("id")), row.get("status", "OPEN"), row.get("priority", "NORMAL"))
+                st.success("Grievance records updated.")
+                st.rerun()
+
+            st.markdown('<div class="section-title">Officer notification</div>', unsafe_allow_html=True)
+            ticket_options = grievances["ticket_id"].tolist() if "ticket_id" in grievances.columns else grievances["id"].tolist()
+            selected = st.selectbox("Ticket", ticket_options)
+            phone = st.text_input("Officer mobile number")
+            if st.button("Send officer alert"):
+                safe_call("notify_pacs_officer", None, selected, phone, "Grievance requires officer action.")
+                st.success(f"Notification dispatched for {selected}.")
+
+    with tabs[1]:
+        sla = safe_call("fetch_grievance_sla_breakdown", {"under_24h": 0, "warning_24_48h": 0, "breached_48h": 0}) or {}
+        a, b, c = st.columns(3)
+        with a: metric_card("Fresh", sla.get("under_24h", 0), "Under 24 hours")
+        with b: metric_card("SLA warning", sla.get("warning_24_48h", 0), "24–48 hours")
+        with c: metric_card("Overdue", sla.get("breached_48h", 0), "Over 48 hours", "card-danger")
+
+        overdue = safe_call("fetch_escalated_grievances", [], max_hours=48) or []
+        if overdue:
+            st.error(f"{len(overdue)} ticket(s) have crossed the 48-hour SLA threshold.")
+            for t_id, ts, k_id, ph, q, age in overdue:
+                st.markdown(f'<div class="card card-danger"><b>{t_id}</b> • {int(age)} hours pending • Kiosk {k_id}<br>{q}</div>', unsafe_allow_html=True)
+        else:
+            st.success("No tickets are currently beyond the 48-hour SLA threshold.")
+
+        avg_hours = safe_call("fetch_average_resolution_time_hours", 0) or 0
+        st.metric("Average ticket resolution time", f"{avg_hours} hours")
+
+    with tabs[2]:
+        st.markdown('<div class="section-title">Ticket action controller</div>', unsafe_allow_html=True)
+        t_id = st.text_input("Ticket ID", key="action_ticket")
+        status = st.selectbox("New status", ["IN_PROGRESS", "RESOLVED", "REJECTED", "ESCALATED"])
+        notes = st.text_area("Officer action notes / remarks")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("Submit status update", type="primary"):
+                if t_id.strip():
+                    safe_call("update_grievance_status", None, t_id.strip(), status, notes)
+                    st.success(f"Ticket {t_id} updated to {status}.")
+                else:
+                    st.warning("Enter a valid ticket ID.")
+        with c2:
+            if st.button("Elevate to HIGH priority"):
+                if t_id.strip():
+                    safe_call("escalate_grievance_priority", None, t_id.strip(), "HIGH")
+                    st.success(f"Ticket {t_id} elevated to HIGH priority.")
+
+        st.markdown('<div class="section-title">Ticket lifecycle history</div>', unsafe_allow_html=True)
+        inspect = st.text_input("Ticket ID to inspect", key="timeline_ticket")
+        if inspect:
+            timeline = safe_call("fetch_ticket_history_timeline", [], inspect) or []
+            if timeline:
+                for ts, old_st, new_st, note in timeline:
+                    st.markdown(f'<div class="card"><b>{ts}</b> • {old_st} → <b>{new_st}</b><br><span class="small-muted">{note}</span></div>', unsafe_allow_html=True)
+            else:
+                st.info("No lifecycle history found for this ticket.")
+
+        st.markdown('<div class="section-title">Nodal officer assignment</div>', unsafe_allow_html=True)
+        ac1, ac2 = st.columns(2)
+        assign_ticket = ac1.text_input("Ticket ID to assign", key="assign_ticket")
+        officer = ac2.selectbox("Nodal officer", ["Officer Deshmukh (Pune)", "Officer Patil (Shirur)", "Officer Shinde (Baramati)"])
+        if st.button("Assign nodal officer"):
+            if assign_ticket:
+                safe_call("record_admin_audit_event", None, st.session_state.admin_username, "OFFICER_ASSIGNED", f"Assigned {assign_ticket} to {officer}")
+                st.success(f"Ticket {assign_ticket} assigned to {officer}.")
+
+    with tabs[3]:
+        csv_data = safe_call("export_grievances_to_csv", None)
+        make_download(csv_data, "📄 Download grievance register (.CSV)", "Sahakar_Vaani_Grievances.csv", "text/csv")
+        if st.button("Bulk resolve all open tickets"):
+            count = safe_call("bulk_resolve_open_grievances", 0)
+            st.success(f"{count} open tickets were updated.")
+
+# -----------------------------------------------------------------------------
+# TELEMETRY & ANALYTICS
+# -----------------------------------------------------------------------------
+elif menu == "Telemetry & Analytics":
+    st.markdown('<div class="page-title">Telemetry, Analytics & Audit</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-subtitle">Inspect query activity, latency, language distribution, trends and officer audit events.</div>', unsafe_allow_html=True)
+
+    tabs = st.tabs(["Query logs", "Performance", "Languages & traffic", "Audit trail"])
+
+    with tabs[0]:
+        logs = safe_call("fetch_logs_filtered", None)
+        if logs is None:
+            logs = safe_call("fetch_low_confidence_logs", []) or []
+        if isinstance(logs, pd.DataFrame):
+            st.dataframe(logs, use_container_width=True, hide_index=True)
+        elif logs:
+            st.dataframe(pd.DataFrame(logs), use_container_width=True, hide_index=True)
+        else:
+            st.info("No query telemetry is currently available.")
+
+        st.markdown('<div class="section-title">Knowledge gaps</div>', unsafe_allow_html=True)
+        gaps = safe_call("fetch_unresolved_queries", []) or []
+        if gaps:
+            for ts, k_id, lang, q in gaps[:20]:
+                st.warning(f"[{ts}] {k_id} • {lang} • {q}")
+        else:
+            st.success("No unresolved low-confidence queries are currently flagged.")
+
+    with tabs[1]:
+        daily = safe_call("fetch_daily_performance_summary", {"today_queries": 0, "avg_latency_ms": 0, "avg_confidence_pct": 0}) or {}
+        a, b, c = st.columns(3)
+        with a: st.metric("Queries today", daily.get("today_queries", 0))
+        with b: st.metric("Average latency", f"{daily.get('avg_latency_ms', 0)} ms")
+        with c: st.metric("RAG match quality", f"{daily.get('avg_confidence_pct', 0)}%")
+
+        lang_data, latency_data = safe_call("fetch_analytics_summary", ([], [])) or ([], [])
+        lcol, rcol = st.columns(2)
+        with lcol:
+            st.markdown('<div class="section-title">Queries by language</div>', unsafe_allow_html=True)
+            if lang_data:
+                st.dataframe(pd.DataFrame(lang_data, columns=["Language", "Queries"]), use_container_width=True, hide_index=True)
+            else:
+                st.info("No language telemetry recorded yet.")
+        with rcol:
+            st.markdown('<div class="section-title">Average response latency</div>', unsafe_allow_html=True)
+            if latency_data:
+                st.dataframe(pd.DataFrame(latency_data, columns=["Language", "Average ms"]), use_container_width=True, hide_index=True)
+            else:
+                st.info("Latency metrics will appear after the first recorded query.")
+
+        top_kw = safe_call("fetch_top_query_keywords", [], 8) or []
+        if top_kw:
+            st.markdown('<div class="section-title">Trending inquiry keywords</div>', unsafe_allow_html=True)
+            cols = st.columns(min(4, len(top_kw)))
+            for i, (kw, count) in enumerate(top_kw):
+                with cols[i % len(cols)]:
+                    st.metric(f"#{i+1} {kw}", count)
+
+    with tabs[2]:
+        lang_stats = safe_call("fetch_language_demographics", {}) or {}
+        if lang_stats:
+            df = pd.DataFrame(list(lang_stats.items()), columns=["Language", "Share"])
+            st.bar_chart(df.set_index("Language"), height=320)
+        else:
+            st.info("No language distribution data available.")
+
+        peak = safe_call("fetch_peak_usage_hours", []) or []
+        st.markdown('<div class="section-title">Peak kiosk traffic hours</div>', unsafe_allow_html=True)
+        if peak:
+            st.dataframe(pd.DataFrame(peak, columns=["Hour", "Queries"]), use_container_width=True, hide_index=True)
+        else:
+            st.info("Insufficient timestamp data for peak-hour analysis.")
+
+        district = st.text_input("District filter", value="Pune District", key="telemetry_district")
+        if st.button("Load district analytics"):
+            rows = safe_call("fetch_logs_by_district", [], district) or []
+            if rows:
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            else:
+                st.info("No district records found.")
+
+    with tabs[3]:
+        audit_logs = safe_call("fetch_admin_audit_logs", []) or []
+        if audit_logs:
+            st.dataframe(pd.DataFrame(audit_logs, columns=["Timestamp", "Officer", "Action", "Details"]), use_container_width=True, hide_index=True)
+        else:
+            st.info("No administrative actions are recorded yet.")
+
+        search_kw = st.text_input("Search audit logs", placeholder="Officer, action or ticket keyword…")
+        if search_kw:
+            matches = safe_call("search_admin_action_logs", [], search_kw) or []
+            if matches:
+                st.dataframe(pd.DataFrame(matches, columns=["Timestamp", "Officer", "Action", "Details"]), use_container_width=True, hide_index=True)
+            else:
+                st.info("No audit entries matched that search.")
+
+        audit_csv = safe_call("export_admin_audit_logs_to_csv", None)
+        make_download(audit_csv, "📜 Download admin audit log (.CSV)", f"Sahakar_Vaani_Admin_Audit_{datetime.now():%Y%m%d}.csv", "text/csv")
+
+# -----------------------------------------------------------------------------
+# KNOWLEDGE & REPORTS
+# -----------------------------------------------------------------------------
+elif menu == "Knowledge & Reports":
+    st.markdown('<div class="page-title">Knowledge Base & Governance Reports</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-subtitle">Maintain policy indexing, inspect retrieval quality and generate official operational reports.</div>', unsafe_allow_html=True)
+
+    tabs = st.tabs(["Knowledge base", "Vector inspection", "Reports & exports", "Ingestion history"])
+
+    with tabs[0]:
+        total_chunks = safe_call("get_total_indexed_chunks_count", 0) or 0
+        gap_count = safe_call("fetch_knowledge_gap_count", 0) or 0
+        a, b = st.columns(2)
+        with a: metric_card("Active policy chunks", f"{total_chunks}", "Indexed in ChromaDB", "card-green")
+        with b: metric_card("Knowledge gaps", f"{gap_count}", "Currently flagged retrieval gaps", "card-accent")
+
+        st.markdown('<div class="section-title">Knowledge coverage gaps</div>', unsafe_allow_html=True)
+        gaps = safe_call("fetch_recent_knowledge_gaps", [], 10) or []
+        if gaps:
+            for ts, k_id, lang, q, score in gaps:
+                st.warning(f"[{ts}] {k_id} • {lang} • score {score} • {q}")
+        else:
+            st.success("No knowledge-base coverage gaps are currently flagged.")
+
+        if st.button("Re-index policy vector store", type="primary"):
+            try:
+                from ingest import ingest_documents
+                with st.spinner("Indexing policy documents from /data…"):
+                    ingest_documents()
+                st.success("Policy vector index updated successfully.")
+            except Exception as exc:
+                st.error(f"Indexing failed: {exc}")
+
+    with tabs[1]:
+        query = st.text_input("Test policy retrieval query", placeholder="Example: KCC interest subvention")
+        if st.button("Run vector match test"):
+            if not query.strip():
+                st.warning("Enter a test query first.")
+            else:
+                try:
+                    from rag_engine import load_vector_db
+                    db = load_vector_db()
+                    results = db.similarity_search_with_score(query.strip(), k=3)
+                    if results:
+                        for idx, (doc, score) in enumerate(results, 1):
+                            src = os.path.basename(doc.metadata.get("source", "Unknown"))
+                            st.markdown(f'<div class="card"><b>Match #{idx}</b> • Distance {round(score,3)} • Source {src}<br><span class="small-muted">{doc.page_content[:450]}</span></div>', unsafe_allow_html=True)
+                    else:
+                        st.info("No matching vector chunks were returned.")
+                except Exception as exc:
+                    st.error(f"Vector inspection failed: {exc}")
+
+    with tabs[2]:
+        st.markdown('<div class="section-title">Official weekly report</div>', unsafe_allow_html=True)
+        if st.button("Generate weekly PDF report", type="primary"):
+            try:
+                report = generate_weekly_report_pdf()
+                if isinstance(report, (bytes, bytearray)):
+                    st.session_state.weekly_report = bytes(report)
+                elif isinstance(report, str) and os.path.exists(report):
+                    with open(report, "rb") as f:
+                        st.session_state.weekly_report = f.read()
+                else:
+                    st.session_state.weekly_report = report
+                st.success("Weekly governance report generated.")
+            except Exception as exc:
+                st.error(f"Report generation failed: {exc}")
+
+        if st.session_state.get("weekly_report"):
+            st.download_button(
+                "⬇️ Download weekly PDF report",
+                data=st.session_state.weekly_report,
+                file_name=f"Sahakar_Vaani_Weekly_Report_{datetime.now():%Y%m%d}.pdf",
+                mime="application/pdf",
+            )
+
+        st.markdown('<div class="section-title">Data exports</div>', unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            daily_csv = safe_call("export_today_telemetry_csv", None)
+            make_download(daily_csv, "📊 Download today's query log", f"Sahakar_Vaani_Queries_{datetime.now():%Y%m%d}.csv", "text/csv")
+        with c2:
+            ingest_csv = safe_call("export_ingestion_logs_to_csv", None)
+            make_download(ingest_csv, "📚 Download ingestion audit log", "Sahakar_Vaani_Ingestion_Audit.csv", "text/csv")
+
+    with tabs[3]:
+        history = safe_call("fetch_ingestion_logs", []) or []
+        if history:
+            st.dataframe(pd.DataFrame(history, columns=["Timestamp", "File", "Chunks", "Status"]), use_container_width=True, hide_index=True)
+        else:
+            st.info("No policy document ingestion events are recorded yet.")
+
+# -----------------------------------------------------------------------------
+# SECURITY & MAINTENANCE
+# -----------------------------------------------------------------------------
+elif menu == "Security & Maintenance":
+    st.markdown('<div class="page-title">Security, Configuration & Maintenance</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-subtitle">Restricted controls for officer credentials, audit records, system configuration and database maintenance.</div>', unsafe_allow_html=True)
+
+    tabs = st.tabs(["Officer security", "Database maintenance", "System configuration", "Audit & contacts"])
+
+    with tabs[0]:
+        html_card('<b>Restricted administrative control</b><br><span class="small-muted">Credential changes should be performed only by an authorised officer.</span>', "card-danger")
+        st.text_input("Current officer username", value=st.session_state.admin_username, disabled=True)
+        new_password = st.text_input("New password", type="password")
+        confirm_password = st.text_input("Confirm new password", type="password")
+        if st.button("Update officer password", type="primary"):
+            if not new_password:
+                st.warning("Enter a new password.")
+            elif new_password != confirm_password:
+                st.error("Password confirmation does not match.")
+            else:
+                try:
+                    result = update_officer_password(st.session_state.admin_username, new_password)
+                    st.success("Officer password updated successfully." if result is not False else "Password update could not be completed.")
+                except TypeError:
+                    try:
+                        result = update_officer_password(st.session_state.admin_username, hashlib.sha256(new_password.encode()).hexdigest())
+                        st.success("Officer password update submitted." if result is not False else "Password update could not be completed.")
+                    except Exception as exc:
+                        st.error(f"Password update failed: {exc}")
+                except Exception as exc:
+                    st.error(f"Password update failed: {exc}")
+
+    with tabs[1]:
+        st.markdown('<div class="section-title">Database and telemetry maintenance</div>', unsafe_allow_html=True)
+        a, b = st.columns(2)
+        with a:
+            if st.button("Verify and repair DB schema"):
+                safe_call("verify_and_repair_schema", None)
+                st.success("Database schema verification completed.")
+            if st.button("Reindex SQLite database"):
+                ok = safe_call("reindex_sqlite_database", False)
+                st.success("SQLite indexes rebuilt." if ok else "SQLite reindex could not be completed.")
+        with b:
+            if st.button("VACUUM SQLite database"):
+                ok = safe_call("vacuum_sqlite_database", False)
+                st.success("Unused SQLite storage reclaimed." if ok else "VACUUM could not be completed.")
+            if st.button("Purge telemetry older than 30 days"):
+                n = safe_call("purge_old_telemetry_logs", 0, 30)
+                st.success(f"Purged {n} telemetry records.")
+
+        if st.button("Archive telemetry older than 60 days"):
+            n = safe_call("archive_old_telemetry_to_json", 0, 60)
+            st.success(f"Archived {n} historical telemetry records.")
+
+    with tabs[2]:
+        st.markdown('<div class="section-title">Runtime configuration</div>', unsafe_allow_html=True)
+        with st.expander("View environment configuration"):
+            st.write(f"Database path: `{DB_FILE}`")
+            st.write("Vector store: `ChromaDB (Local)`")
+            st.write("TTS engine: `AI4Bharat / configured project engine`")
+            st.write("LLM gateway: `Groq API`")
+        force_offline = st.checkbox("Force offline mode", value=False)
+        bypass_check = st.checkbox("Bypass amplitude / diagnostic check", value=False)
+        timeout = st.number_input("Session timeout (seconds)", min_value=60, max_value=3600, value=300, step=30)
+        st.caption(f"Current session override values: offline={force_offline}, bypass={bypass_check}, timeout={timeout}s")
+
+        st.markdown('<div class="section-title">Manual officer action</div>', unsafe_allow_html=True)
+        officer_id = st.text_input("Officer ID", value=st.session_state.admin_username)
+        action = st.selectbox("Action type", ["TELEMETRY_REVIEW", "HARDWARE_MAINTENANCE", "MANUAL_CALL_MADE", "OTHER"])
+        notes = st.text_area("Action details")
+        if st.button("Record audit action"):
+            if notes.strip():
+                safe_call("record_admin_audit_event", None, officer_id, action, notes.strip())
+                st.success("Audit action recorded.")
+            else:
+                st.warning("Enter action details before saving.")
+
+    with tabs[3]:
+        contact = safe_call("get_district_officer_contact", {}, "Pune District") or {}
+        st.markdown('<div class="section-title">Regional escalation contact</div>', unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        with c1: st.metric("Nodal officer", contact.get("officer", "Not configured"))
+        with c2: st.metric("Phone", contact.get("phone", "Not configured"))
+        with c3: st.metric("Email", contact.get("email", "Not configured"))
+
+        audit = safe_call("fetch_admin_audit_logs", []) or []
+        st.markdown('<div class="section-title">Recent officer actions</div>', unsafe_allow_html=True)
+        if audit:
+            st.dataframe(pd.DataFrame(audit[:15], columns=["Timestamp", "Officer", "Action", "Details"]), use_container_width=True, hide_index=True)
+        else:
+            st.info("No officer actions are recorded yet.")
+
+# -----------------------------------------------------------------------------
+# Footer
+# -----------------------------------------------------------------------------
+st.markdown(
+    """
+    <div style="margin-top:30px;padding-top:15px;border-top:1px solid #dce4ed;color:#64748b;font-size:.72rem;display:flex;justify-content:space-between;gap:12px;">
+      <span>Sahakar-Vaani • PACS Governance Administration</span>
+      <span>Restricted system • Authorised personnel only</span>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
-# ==========================================
-# NEW FEATURE: AUDIT LOG CSV DOWNLOAD
-# ==========================================
-st.sidebar.markdown("---")
-from db_manager import export_admin_audit_logs_to_csv
-audit_csv_data = export_admin_audit_logs_to_csv()
-
-st.sidebar.download_button(
-    label="📜 Download Admin Audit Log (.CSV)",
-    data=audit_csv_data,
-    file_name=f"Sahakar_Vaani_Admin_Audit_{datetime.now().strftime('%Y%m%d')}.csv",
-    mime="text/csv"
-)   
-# ==========================================
-# NEW FEATURE: KNOWLEDGE GAP REPORT WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("🔍 Knowledge Base Coverage Gaps")
-
-from db_manager import fetch_recent_knowledge_gaps
-gaps = fetch_recent_knowledge_gaps(5)
-
-if gaps:
-    for ts, k_id, lang, q, score in gaps:
-        st.warning(f"• **[{ts}]** `{k_id}` ({lang}) | Score: `{score}` — *\"{q}\"*")
-else:
-    st.info("No knowledge base gaps currently flagged.")
-    # ==========================================
-# NEW FEATURE: AUDIT LOG SEARCH WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("🔍 Search Administrative Audit Logs")
-
-search_kw = st.text_input("Enter officer name, action type, or ticket keyword:")
-if search_kw:
-    from db_manager import search_admin_action_logs
-    matching_logs = search_admin_action_logs(search_kw)
-    if matching_logs:
-        for ts, user, action, details in matching_logs:
-            st.write(f"• **[{ts}]** `{user}` — **{action}**: {details}")
-    else:
-        st.info("No audit logs matching keyword.")
-        # ==========================================
-# NEW FEATURE: DB FRAGMENTATION DISPLAY
-# ==========================================
-st.sidebar.markdown("---")
-from db_manager import fetch_sqlite_page_metrics
-db_pages = fetch_sqlite_page_metrics()
-st.sidebar.caption(f"💾 Storage Space: `{db_pages['total_kb']} KB` (Unused: `{db_pages['unused_kb']} KB`)")
-# ==========================================
-# NEW FEATURE: DATABASE VACUUM BUTTON
-# ==========================================
-st.sidebar.markdown("---")
-if st.sidebar.button("🧹 Reclaim DB Disk Space (VACUUM)"):
-    from db_manager import vacuum_sqlite_database
-    if vacuum_sqlite_database():
-        st.sidebar.success("Database vacuumed successfully! Unused storage reclaimed.")
-    else:
-        st.sidebar.error("Failed to execute database vacuum.")
-        # ==========================================
-# NEW FEATURE: 48H SLA BREACH ALERT BANNER
-# ==========================================
-st.markdown("---")
-conn = sqlite3.connect(DB_FILE)
-cursor = conn.cursor()
-try:
-    cursor.execute("SELECT timestamp FROM grievances WHERE status = 'OPEN'")
-    open_ts = cursor.fetchall()
-finally:
-    conn.close()
-
-breached_48h_count = sum(1 for (ts,) in open_ts if ticket_age_hours(ts) >= 48)
-
-if breached_48h_count > 0:
-    st.error(f"🚨 **CRITICAL SLA ALERT**: {breached_48h_count} grievance ticket(s) have been unresolved for over 48 hours! Immediate officer action required.")
-    # ==========================================
-# NEW FEATURE: MAINTENANCE HISTORY WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("🛠️ System Optimization & Maintenance History")
-
-conn = sqlite3.connect(DB_FILE)
-cursor = conn.cursor()
-try:
-    cursor.execute("SELECT timestamp, task_name, status, details FROM maintenance_logs ORDER BY id DESC LIMIT 5")
-    m_logs = cursor.fetchall()
-except sqlite3.OperationalError:
-    m_logs = []
-finally:
-    conn.close()
-
-if m_logs:
-    for ts, task, status, details in m_logs:
-        st.write(f"• **[{ts}]** `{task}` — **{status}**: {details}")
-else:
-    st.info("No system maintenance tasks logged yet.")
-    # ==========================================
-# NEW FEATURE: TELEMETRY ARCHIVAL BUTTON
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("🗄️ Telemetry Cold Storage")
-
-if st.sidebar.button("📦 Archive >60 Days Telemetry (.gz)"):
-    from db_manager import archive_old_telemetry_to_json
-    archived_rows = archive_old_telemetry_to_json(60)
-    if archived_rows > 0:
-        st.sidebar.success(f"Archived and pruned {archived_rows} telemetry records!")
-    else:
-        st.sidebar.info("No records older than 60 days to archive.")
-        # ==========================================
-# NEW FEATURE: TICKET PRIORITY ESCALATION WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("🚨 Priority Ticket Escalation Panel")
-
-esc_ticket_id = st.text_input("Enter Ticket ID to mark as Urgent (e.g. TKT-1002):")
-if st.button("🔥 Elevate Ticket to HIGH Priority"):
-    if esc_ticket_id:
-        from db_manager import escalate_grievance_priority
-        escalate_grievance_priority(esc_ticket_id, "HIGH")
-        st.success(f"Ticket `{esc_ticket_id}` elevated to High Priority!")
-        # ==========================================
-# NEW FEATURE: MANUAL AUDIT LOG ENTRY FORM
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("📝 Record Manual Officer Action")
-
-with st.sidebar.expander("Log Manual Action"):
-    officer_id = st.text_input("Officer Name/ID:", value="Officer-MH01")
-    act_type = st.selectbox("Action Type:", ["TELEMETRY_REVIEW", "HARDWARE_MAINTENANCE", "MANUAL_CALL_MADE", "OTHER"])
-    act_notes = st.text_area("Details / Action Notes:")
-    
-    if st.button("Save Audit Entry"):
-        if act_notes:
-            from db_manager import record_admin_audit_event
-            record_admin_audit_event(officer_id, act_type, act_notes)
-            st.success("Audit event logged successfully!")
-            # ==========================================
-# NEW FEATURE: SYSTEM HEALTH EXECUTIVE CARD
-# ==========================================
-st.markdown("---")
-st.subheader("🖥️ Cluster Subsystem Diagnostic Matrix")
-
-from db_manager import get_system_health
-from rag_engine import verify_vector_search_health, is_internet_available
-
-sys_h = get_system_health()
-vec_h = verify_vector_search_health()
-net_online = is_internet_available()
-
-h_col1, h_col2, h_col3 = st.columns(3)
-h_col1.metric("SQLite Telemetry DB", sys_h["db_status"], f"{sys_h['disk_free_gb']} GB Free")
-count_val = vec_h.get("collection_count", vec_h.get("collections", 1))
-m_col2.metric("ChromaDB Vector Engine", vec_h.get("status", "Healthy"), f"{count_val} Collections")
-h_col3.metric("Groq Cloud Link", "ONLINE" if net_online else "OFFLINE", "Auto Fallback Ready")
-# ==========================================
-# NEW FEATURE: TRENDING KEYWORDS WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("🔥 Trending Inquiries Keyword Radar")
-
-from db_manager import fetch_top_query_keywords
-top_kw = fetch_top_query_keywords(5)
-
-kw_cols = st.columns(len(top_kw))
-for idx, (kw, count) in enumerate(top_kw):
-    kw_cols[idx].metric(f"#{idx+1} '{kw.upper()}'", f"{count} Queries")
-    # ==========================================
-# NEW FEATURE: BACKUP GENERATOR BUTTON
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("💾 Database Backup Utility")
-
-if st.sidebar.button("📦 Create Compressed Backup (.db.gz)"):
-    from db_manager import generate_compressed_db_backup
-    backup_file = generate_compressed_db_backup()
-    if backup_file:
-        st.sidebar.success(f"Backup created: `{os.path.basename(backup_file)}`")
-    else:
-        st.sidebar.error("Failed to generate database backup.")
-        # ==========================================
-# NEW FEATURE: TICKET TIMELINE DISPLAY WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("📜 Grievance Lifecycle History Inspector")
-
-inspect_tkt_id = st.text_input("Enter Ticket ID to View Timeline History (e.g. TKT-1001):")
-if inspect_tkt_id:
-    from db_manager import fetch_ticket_history_timeline
-    timeline_events = fetch_ticket_history_timeline(inspect_tkt_id)
-    
-    if timeline_events:
-        st.info(f"Chronological history for `{inspect_tkt_id}`:")
-        for ts, old_st, new_st, notes in timeline_events:
-            st.markdown(f"• **[{ts}]** Status changed from `{old_st}` ➔ `{new_st}` | *Notes*: {notes}")
-    else:
-        st.warning(f"No history records found for ticket `{inspect_tkt_id}`.")
-        # ==========================================
-# FEATURE 189: DISTRICT OFFICER ASSIGNMENT WIDGET
-# ==========================================
-st.markdown("---")
-st.subheader("👤 Assign Nodal Officer to Ticket")
-
-assign_col1, assign_col2 = st.columns(2)
-t_id = assign_col1.text_input("Enter Ticket ID (e.g. TKT-1002):")
-off_name = assign_col2.selectbox("Select Nodal Officer:", ["Officer Deshmukh (Pune)", "Officer Patil (Shirur)", "Officer Shinde (Baramati)"])
-
-if st.button("📌 Assign Officer"):
-    if t_id:
-        from db_manager import record_admin_audit_event
-        record_admin_audit_event("SUPERVISOR", "OFFICER_ASSIGNED", f"Assigned ticket {t_id} to {off_name}")
-        st.success(f"Ticket `{t_id}` assigned to `{off_name}` successfully!")
-
-# ==========================================
-# FEATURE 190: SYSTEM CONFIGURATION OVERRIDE GUI
-# ==========================================
-st.sidebar.markdown("---")
-with st.sidebar.expander("⚙️ System Overrides"):
-    st.checkbox("Force Offline Mode", value=False)
-    st.checkbox("Bypass Amplitude Check", value=False)
-    st.number_input("Session Timeout (s)", value=300)
-
-# ==========================================
-# FEATURE 191: LANGUAGE BREAKDOWN PIE CHART
-# ==========================================
-st.markdown("---")
-st.subheader("🌐 Language Usage Distribution")
-
-from db_manager import fetch_language_breakdown_stats
-lang_stats = fetch_language_breakdown_stats()
-
-if lang_stats:
-    import pandas as pd
-    df_lang = pd.DataFrame(list(lang_stats.items()), columns=["Language", "Queries"])
-    st.bar_chart(df_lang.set_index("Language"))
-else:
-    st.info("No language statistics available.")
-
-# ==========================================
-# FEATURE 192: REINDEX SQLITE DATABASE BUTTON
-# ==========================================
-st.sidebar.markdown("---")
-if st.sidebar.button("⚙️ Reindex SQLite DB"):
-    from db_manager import reindex_sqlite_database
-    if reindex_sqlite_database():
-        st.sidebar.success("Database indexes rebuilt!")
-
-# ==========================================
-# FEATURE 193: POSITIVE FEEDBACK SATISFACTION METRIC
-# ==========================================
-from db_manager import fetch_feedback_positive_percentage
-sat_pct = fetch_feedback_positive_percentage()
-st.sidebar.metric("Farmer CSAT Rating", f"{sat_pct}%", delta="Positive")
-
-# ==========================================
-# FEATURE 194: MANUAL BROADCAST MESSAGE MANAGER
-# ==========================================
-st.markdown("---")
-st.subheader("📢 Publish Kiosk Notice Broadcast")
-b_msg = st.text_input("Enter announcement notice for all kiosk screens:")
-if st.button("📢 Publish Notice"):
-    if b_msg:
-        from db_manager import set_pacs_broadcast_message
-        set_pacs_broadcast_message(b_msg)
-        st.success("Broadcast notice updated live across all kiosk terminals!")
-    
