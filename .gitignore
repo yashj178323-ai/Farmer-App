@@ -5,9 +5,5 @@ __pycache__/
 chroma_db/
 temp_input.wav
 response.mp3
-<<<<<<< HEAD
 .streamlit/secrets.toml
 .venv/
-=======
-.streamlit/secrets.toml
->>>>>>> f6b31d8cf48c2d556f483b57b5e8ff29e8c474f2
