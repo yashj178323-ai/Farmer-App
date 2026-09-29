@@ -12,8 +12,6 @@ Ask in your own language. Get answers grounded in official policy. Escalate to a
 ![DB](https://img.shields.io/badge/Database-SQLite-16a34a?style=flat-square&labelColor=1e293b&logo=sqlite&logoColor=white)
 
 
-[Overview](#-overview) · [Features](#-features) · [Architecture](#-architecture) · [How it works](#-how-it-works) · [Quick start](#-quick-start) · [Demo](#-demo-flow) · [Roadmap](#-future-scope)
-
 ---
 
 ## 📖 Overview
