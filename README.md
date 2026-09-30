@@ -11,12 +11,6 @@ Ask in your own language. Get answers grounded in official policy. Escalate to a
 ![LLM](https://img.shields.io/badge/LLM-Groq-16a34a?style=flat-square&labelColor=1e293b)
 ![DB](https://img.shields.io/badge/Database-SQLite-16a34a?style=flat-square&labelColor=1e293b&logo=sqlite&logoColor=white)
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/yashj178323-ai/Sahakar-Vaani/main/kiosk-home.jpg" alt="Sahakar-Vaani farmer kiosk home screen with Hindi language selection" width="900">
-  <br>
-  <sub><i>Farmer kiosk home screen: the farmer picks a language, and speech recognition, AI answers and voice playback all run in that language.</i></sub>
-</p>
-
 ---
 
 ## 📖 Overview
@@ -24,6 +18,20 @@ Ask in your own language. Get answers grounded in official policy. Escalate to a
 **Sahakar-Vaani** is a voice-first, multilingual assistant for Primary Agricultural Credit Societies (PACS), farming cooperatives, and rural communities in India.
 
 A farmer speaks or types a question at a kiosk. A hybrid retrieval pipeline finds the relevant policy passages, and an LLM answers in plain language **with citations**. If the answer doesn't solve the problem, the farmer raises a **grievance ticket** that PACS officers review from a separate admin dashboard, so a human stays in the loop.
+
+---
+
+## 🖥️ System in Action
+
+<p align="center">
+  <img src="assets/kiosk-home.jpg" alt="Sahakar-Vaani farmer kiosk home screen with Hindi language selection" width="100%">
+</p>
+
+<p align="center">
+  <i>Farmer Kiosk — pick a language, then speech recognition, AI answers and voice playback all run in that language.</i>
+</p>
+
+---
 
 ## 🎯 The Problem
 
